@@ -2,7 +2,7 @@
 import { defineConfig } from "file:///C:/Work/titletrack-system/node_modules/vite/dist/node/index.js";
 import react from "file:///C:/Work/titletrack-system/node_modules/@vitejs/plugin-react-swc/index.mjs";
 import path from "path";
-import { componentTagger } from "file:///C:/Work/titletrack-system/node_modules/lovable-tagger/dist/index.js";
+import { componentTagger } from "file:///C:/Work/titletrack-system/node_modules/DovahTech-tagger/dist/index.js";
 var __vite_injected_original_dirname = "C:\\Work\\titletrack-system";
 var vite_config_default = defineConfig(({ mode }) => ({
   server: {

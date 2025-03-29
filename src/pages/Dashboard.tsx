@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart2, ChevronUp, ChevronDown, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useNavigate } from "react-router-dom";
 
 export function Dashboard() {
+  const navigate = useNavigate();
   return (
     <div className="space-y-8">
       <div className="flex flex-col space-y-2">
@@ -120,4 +122,50 @@ export function Dashboard() {
       </Card>
     </div>
   );
+  
+  // Add navigation handlers
+  const goToAnaliseErros = () => navigate("/analise-erros");
+  const goToRelatorios = () => navigate("/relatorios");
+  
+  // In the "Erros Pendentes" card, add onClick to the entire card or a button:
+  /*
+  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={goToAnaliseErros}>
+    // ... existing card content ...
+  </Card>
+  */
+  
+  // Add a section for quick access to reports
+  /*
+  <div className="mt-6">
+    <h2 className="text-xl font-semibold mb-4">Acesso Rápido</h2>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Button 
+        variant="outline" 
+        className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+        onClick={goToRelatorios}
+      >
+        <BarChart2 className="h-8 w-8 text-primary" />
+        <span>Relatórios</span>
+      </Button>
+      
+      <Button 
+        variant="outline" 
+        className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+        onClick={goToAnaliseErros}
+      >
+        <AlertTriangle className="h-8 w-8 text-yellow-500" />
+        <span>Análise de Erros</span>
+      </Button>
+      
+      <Button 
+        variant="outline" 
+        className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+        onClick={() => navigate("/consulta-titulos")}
+      >
+        <FileText className="h-8 w-8 text-blue-500" />
+        <span>Consulta de Títulos</span>
+      </Button>
+    </div>
+  </div>
+  */
 }

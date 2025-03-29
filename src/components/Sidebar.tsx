@@ -1,10 +1,22 @@
 
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, LayoutDashboard, Upload, Search, FileText, X, AlertTriangle, BarChart2, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
+import {
+  LayoutDashboard,
+  Upload,
+  Search,
+  FileText,
+  X,
+  AlertTriangle,
+  BarChart2,
+  Settings,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -13,18 +25,28 @@ interface NavItemProps {
   minimized: boolean;
 }
 
-const NavItem = ({ icon, label, to, minimized }: NavItemProps) => (
-  <NavLink 
-    to={to}
-    className={({ isActive }) => cn(
-      "flex items-center px-4 py-3 text-foreground/70 hover:bg-accent hover:text-foreground transition-colors",
-      isActive ? "bg-accent text-foreground font-medium" : ""
-    )}
-  >
-    <div className="mr-2">{icon}</div>
-    {!minimized && <span className="sidebar-item-text">{label}</span>}
-  </NavLink>
-);
+function NavItem({ icon, label, to, minimized }: NavItemProps) {
+  const location = useLocation();
+  const isActive = location.pathname === to || 
+                  (to !== "/" && location.pathname.startsWith(to)) ||
+                  (to === "/consulta-titulos" && location.pathname.startsWith("/titulo/"));
+
+  return (
+    <NavLink to={to} className="block">
+      <div
+        className={cn(
+          "flex items-center px-4 py-2 my-1 mx-2 rounded-md transition-colors",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        )}
+      >
+        <div className="mr-3">{icon}</div>
+        {!minimized && <span>{label}</span>}
+      </div>
+    </NavLink>
+  );
+}
 
 export function Sidebar() {
   const [minimized, setMinimized] = useState(false);
@@ -63,6 +85,7 @@ export function Sidebar() {
         </nav>
         
         <div className="mt-auto border-t dark:border-gray-600">
+          <ConnectionStatus />
           <ThemeToggle />
         </div>
       </div>

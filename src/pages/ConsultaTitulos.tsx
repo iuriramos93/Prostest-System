@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 // Interface para o título
 interface Titulo {
@@ -24,6 +25,7 @@ export function ConsultaTitulos() {
   const [isLoading, setIsLoading] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
   const [selectedTitulo, setSelectedTitulo] = useState<Titulo | null>(null);
+  const navigate = useNavigate();
   
   // Mock para os títulos
   const [titulos, setTitulos] = useState<Titulo[]>([
@@ -68,20 +70,19 @@ export function ConsultaTitulos() {
   };
 
   const handleViewDetails = (titulo: Titulo) => {
-    setSelectedTitulo(titulo);
-    setOpenDetails(true);
+    navigate(`/titulo/${titulo.id}`);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Protestado":
-        return "text-red-500 dark:text-red-400";
+        return "text-red-500 font-medium";
       case "Pendente":
-        return "text-yellow-500 dark:text-yellow-400";
+        return "text-yellow-500 font-medium";
       case "Pago":
-        return "text-green-500 dark:text-green-400";
+        return "text-green-500 font-medium";
       default:
-        return "";
+        return "text-gray-500 font-medium";
     }
   };
 
@@ -132,22 +133,27 @@ export function ConsultaTitulos() {
                 <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
+            // Inside the table component, in the TableBody section
             <TableBody>
               {titulos.map((titulo) => (
                 <TableRow key={titulo.id}>
                   <TableCell>{titulo.numero}</TableCell>
                   <TableCell>{new Date(titulo.data).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell>{titulo.valor}</TableCell>
-                  <TableCell className={getStatusColor(titulo.status)}>
-                    {titulo.status}
+                  <TableCell>
+                    <span className={getStatusColor(titulo.status)}>
+                      {titulo.status}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Button 
-                      variant="outline" 
-                      size="icon"
+                      variant="ghost" 
+                      size="sm" 
                       onClick={() => handleViewDetails(titulo)}
+                      className="flex items-center gap-1"
                     >
                       <Eye className="h-4 w-4" />
+                      Detalhes
                     </Button>
                   </TableCell>
                 </TableRow>
