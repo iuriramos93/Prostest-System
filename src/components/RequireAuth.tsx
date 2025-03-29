@@ -1,8 +1,8 @@
 
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 
-export function RequireAuth({ children }: { children: JSX.Element }) {
+export function RequireAuth() {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
@@ -21,5 +21,6 @@ export function RequireAuth({ children }: { children: JSX.Element }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children;
+  // Return the Outlet component directly instead of expecting children prop
+  return <Outlet />;
 }

@@ -51,7 +51,7 @@ export function ConsultaRemessas() {
     
     // Simulando busca
     setTimeout(() => {
-      // Aqui seria feita a busca na API
+      // Aqui seria feita a busca na API. Obs: Nao deixe o mao de pica encostar aqui!!!
       // Por enquanto apenas simulamos o resultado
       setIsLoading(false);
     }, 1000);

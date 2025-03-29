@@ -1,51 +1,44 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ThemeProvider } from "@/hooks/use-theme";
-import { AuthProvider } from "@/hooks/use-auth";
-import { RequireAuth } from "@/components/RequireAuth";
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/layouts/MainLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { EnvioDocumentos } from "@/pages/EnvioDocumentos";
 import { ConsultaRemessas } from "@/pages/ConsultaRemessas";
 import { ConsultaTitulos } from "@/pages/ConsultaTitulos";
+import { Desistencias } from "@/pages/Desistencias";
 import { Configuracoes } from "@/pages/Configuracoes";
-import { Login } from "@/pages/auth/Login";
 import NotFound from "@/pages/NotFound";
+import { Login } from "@/pages/auth/Login";
+import { RequireAuth } from "@/components/RequireAuth";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/hooks/use-auth"; // Add this import
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
+function App() {
+  return (
+    <ThemeProvider defaultTheme="light" storageKey="titletrack-theme">
+      <AuthProvider> {/* Add AuthProvider here */}
         <BrowserRouter>
           <Routes>
-            {/* Rota pública de autenticação */}
             <Route path="/login" element={<Login />} />
             
-            {/* Rotas protegidas */}
-            <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/envio-documentos" element={<EnvioDocumentos />} />
-              <Route path="/consulta-remessas" element={<ConsultaRemessas />} />
-              <Route path="/consulta-titulos" element={<ConsultaTitulos />} />
-              <Route path="/configuracoes" element={<Configuracoes />} />
-              {/* Outras rotas protegidas seriam adicionadas aqui */}
+            <Route element={<RequireAuth />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/envio-documentos" element={<EnvioDocumentos />} />
+                <Route path="/consulta-remessas" element={<ConsultaRemessas />} />
+                <Route path="/consulta-titulos" element={<ConsultaTitulos />} />
+                <Route path="/desistencias" element={<Desistencias />} />
+                <Route path="/configuracoes" element={<Configuracoes />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Route>
-            
-            {/* Rota de fallback */}
-            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
+        <Toaster />
+      </AuthProvider> {/* Close AuthProvider */}
     </ThemeProvider>
-  </QueryClientProvider>
-);
+  );
+}
 
 export default App;
