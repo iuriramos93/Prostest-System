@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   LayoutDashboard,
   Upload,
@@ -15,7 +16,8 @@ import {
   BarChart2,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Menu
 } from "lucide-react";
 
 interface NavItemProps {

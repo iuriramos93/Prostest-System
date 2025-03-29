@@ -27,7 +27,7 @@ export function ConnectionStatus() {
         className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`}
         title={isOnline ? "Online" : "Offline"}
       />
-      <span className="text-xs text-muted-foreground sidebar-item-text">
+      <span className="text-xs text-muted-foreground sidebar-item-text whitespace-nowrap">
         {isOnline ? "Online" : "Offline"}
       </span>
     </div>

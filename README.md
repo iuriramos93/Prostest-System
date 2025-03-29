@@ -14,7 +14,7 @@ Um sistema de dashboard para cartório de protesto, desenvolvido com React, Type
 - TanStack Query para gerenciamento de estado e requisições
 - React Router para navegação
 
-### Backend (Preparado para)
+### Backend (Sujeito a mudança - Flask)
 - Python 3.11 + Django + Django REST Framework
 - Autenticação JWT
 - Docker + PostgreSQL
@@ -48,7 +48,7 @@ Um sistema de dashboard para cartório de protesto, desenvolvido com React, Type
 
 ```sh
 # Clonar o repositório
-git clone <URL_DO_REPOSITÓRIO>
+git clone https://github.com/buziodev/Prostest-System/
 
 # Entrar no diretório do projeto
 cd sistema-protesto
