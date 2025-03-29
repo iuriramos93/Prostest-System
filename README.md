@@ -1,69 +1,76 @@
-# Welcome to your Lovable project
 
-## Project info
+# Sistema de Protesto - Dashboard
 
-**URL**: https://lovable.dev/projects/3213c6e6-acfd-4a6b-804f-19665f930dfe
+## Visão Geral
 
-## How can I edit this code?
+Um sistema de dashboard para cartório de protesto, desenvolvido com React, TypeScript e componentes UI modernos. Este sistema permite gerenciar o processo de envio, consulta e análise de remessas e títulos de protesto.
 
-There are several ways of editing your application.
+## Tecnologias
 
-**Use Lovable**
+### Frontend
+- React + Vite (TypeScript)
+- Tailwind CSS para estilização
+- shadcn/ui para componentes
+- TanStack Query para gerenciamento de estado e requisições
+- React Router para navegação
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3213c6e6-acfd-4a6b-804f-19665f930dfe) and start prompting.
+### Backend (Preparado para)
+- Python 3.11 + Django + Django REST Framework
+- Autenticação JWT
+- Docker + PostgreSQL
 
-Changes made via Lovable will be committed automatically to this repo.
+## Funcionalidades Atuais
 
-**Use your preferred IDE**
+1. **Autenticação**
+   - Sistema de login/logout
+   - Proteção de rotas
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. **Dashboard**
+   - Visão geral com métricas principais
+   - Listagem das últimas remessas
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+3. **Envio de Documentos**
+   - Upload de arquivos XML
+   - Seleção de UF e tipo de documento
 
-Follow these steps:
+4. **Consulta de Remessas**
+   - Filtros por número, data e status
+   - Visualização detalhada
+
+5. **Consulta de Títulos**
+   - Busca de títulos por número e data
+   - Detalhes completos do título
+
+6. **Tema Claro/Escuro**
+   - Suporte para alternância entre temas
+
+## Configuração do Ambiente de Desenvolvimento
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clonar o repositório
+git clone <URL_DO_REPOSITÓRIO>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Entrar no diretório do projeto
+cd sistema-protesto
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Instalar dependências
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Iniciar servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Autenticação (Modo de Desenvolvimento)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Para testar a autenticação, use as seguintes credenciais:
 
-**Use GitHub Codespaces**
+- Email: admin@example.com
+- Senha: admin123
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Próximos Passos
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/3213c6e6-acfd-4a6b-804f-19665f930dfe) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- Implementação das páginas de Desistências, Análise de Erros e Relatórios
+- Integração com backend Django para autenticação e operações CRUD
+- Implementação da paginação nas listagens
+- Melhorias na responsividade para dispositivos móveis
+- Implementação de testes automatizados
