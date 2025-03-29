@@ -12,6 +12,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { EnvioDocumentos } from "@/pages/EnvioDocumentos";
 import { ConsultaRemessas } from "@/pages/ConsultaRemessas";
 import { ConsultaTitulos } from "@/pages/ConsultaTitulos";
+import { Configuracoes } from "@/pages/Configuracoes";
 import { Login } from "@/pages/auth/Login";
 import NotFound from "@/pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/envio-documentos" element={<EnvioDocumentos />} />
               <Route path="/consulta-remessas" element={<ConsultaRemessas />} />
               <Route path="/consulta-titulos" element={<ConsultaTitulos />} />
+              <Route path="/configuracoes" element={<Configuracoes />} />
               {/* Outras rotas protegidas seriam adicionadas aqui */}
             </Route>
             
