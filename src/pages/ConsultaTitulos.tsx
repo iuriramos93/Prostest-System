@@ -133,7 +133,7 @@ export function ConsultaTitulos() {
                 <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
-            // Inside the table component, in the TableBody section
+            {/* Inside the table component, in the TableBody section */}
             <TableBody>
               {titulos.map((titulo) => (
                 <TableRow key={titulo.id}>
