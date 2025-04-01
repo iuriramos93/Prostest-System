@@ -1,10 +1,11 @@
 
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { useAuth } from "@/hooks/use-auth";
 import {
   LayoutDashboard,
   Upload,
@@ -15,7 +16,9 @@ import {
   BarChart2,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut,
+  User
 } from "lucide-react";
 
 interface NavItemProps {
@@ -50,9 +53,16 @@ function NavItem({ icon, label, to, minimized }: NavItemProps) {
 
 export function Sidebar() {
   const [minimized, setMinimized] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMinimized = () => {
     setMinimized(!minimized);
+  };
+  
+  const handleLogout = () => {
+    logout();
+    navigate("/auth/login");
   };
 
   return (
@@ -85,6 +95,26 @@ export function Sidebar() {
         </nav>
         
         <div className="mt-auto border-t dark:border-gray-600">
+          {user && (
+            <div className={cn(
+              "flex items-center px-4 py-3 text-gray-600 dark:text-gray-300 border-b dark:border-gray-600",
+              minimized ? "justify-center" : "justify-between"
+            )}>
+              <div className="flex items-center">
+                <User size={20} className="mr-2" />
+                {!minimized && <span className="text-sm font-medium">{user.name}</span>}
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout}
+                title="Logout"
+                className="text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400"
+              >
+                <LogOut size={18} />
+              </Button>
+            </div>
+          )}
           <ConnectionStatus />
           <ThemeToggle />
         </div>

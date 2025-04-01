@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -50,6 +51,9 @@ export function Login() {
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">SISTEMA DE PROTESTO</CardTitle>

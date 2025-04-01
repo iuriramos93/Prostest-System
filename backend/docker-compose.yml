@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/protest_system
+      - JWT_SECRET_KEY=dev_secret_key_change_in_production
+    depends_on:
+      - db
+    networks:
+      - protest-network
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=protest_system
+    ports:
+      - "5432:5432"
+    networks:
+      - protest-network
+
+networks:
+  protest-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
