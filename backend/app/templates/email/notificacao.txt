@@ -1,0 +1,23 @@
+{{ titulo }}
+
+Prezado(a) {{ nome }},
+
+{{ mensagem }}
+
+{% if detalhes %}
+Detalhes:
+{% for chave, valor in detalhes.items() %}
+- {{ chave }}: {{ valor }}
+{% endfor %}
+{% endif %}
+
+{% if link_acao %}
+{{ texto_acao }}: {{ link_acao }}
+{% endif %}
+
+Atenciosamente,
+Equipe do Sistema de Protesto
+
+---
+Este é um e-mail automático. Por favor, não responda a esta mensagem.
+© {{ ano }} Sistema de Protesto. Todos os direitos reservados.

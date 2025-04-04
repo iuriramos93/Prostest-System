@@ -1,142 +1,131 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import axios from "axios";
 
-// Interface for withdrawal request
-interface SolicitacaoDesistencia {
+// Interface para a desistência
+interface Desistencia {
   id: string;
   numeroTitulo: string;
   protocolo: string;
   devedor: string;
-  valor: string;
-  data: string;
+  valor: number;
+  dataProtocolo: string;
+  dataSolicitacao: string;
   motivo: string;
-  status: "Aprovada" | "Pendente" | "Rejeitada";
+  observacoes?: string;
+  status: "PENDENTE" | "APROVADA" | "REJEITADA";
+}
+
+// Interface para o filtro
+interface FiltroDesistencia {
+  numeroTitulo?: string;
+  protocolo?: string;
+  dataInicial?: string;
+  dataFinal?: string;
+  status?: string;
 }
 
 export function Desistencias() {
-  // Search form state
-  const [numeroTituloBusca, setNumeroTituloBusca] = useState("");
-  const [protocoloBusca, setProtocoloBusca] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-
-  // Submission form state
-  const [numeroTitulo, setNumeroTitulo] = useState("");
-  const [protocolo, setProtocolo] = useState("");
-  const [devedor, setDevedor] = useState("");
-  const [valor, setValor] = useState("");
-  const [motivo, setMotivo] = useState("");
-  const [observacoes, setObservacoes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // History state
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoDesistencia[]>([
-    {
-      id: "1",
-      numeroTitulo: "12345678",
-      protocolo: "PROT-2023-001234",
-      devedor: "Empresa ABC Ltda",
-      valor: "R$ 1.500,00",
-      data: "2023-10-05",
-      motivo: "Pagamento direto ao credor",
-      status: "Aprovada"
-    }
-  ]);
-
+  const [desistencias, setDesistencias] = useState<Desistencia[]>([]);
+  const [filtros, setFiltros] = useState<FiltroDesistencia>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDesistencia, setSelectedDesistencia] = useState<Desistencia | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
   const { toast } = useToast();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSearching(true);
-    
-    // Simulate API search
-    setTimeout(() => {
-      // Here you would make an API call to search for the title
-      // For now, we'll just simulate finding a title
-      if (numeroTituloBusca === "12345678" || protocoloBusca === "PROT-2023-001234") {
-        setNumeroTitulo("12345678");
-        setProtocolo("PROT-2023-001234");
-        setDevedor("Empresa ABC Ltda");
-        setValor("R$ 1.500,00");
-      } else {
-        toast({
-          title: "Título não encontrado",
-          description: "Verifique os dados informados e tente novamente.",
-          variant: "destructive",
-        });
-      }
-      setIsSearching(false);
-    }, 1000);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!numeroTitulo || !protocolo || !devedor || !valor || !motivo) {
-      toast({
-        title: "Erro de validação",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
-      return;
+  const { user } = useAuth();
+  
+  const api = axios.create({
+    baseURL: "/api",
+    headers: {
+      "Authorization": `Bearer ${localStorage.getItem("token")}`
     }
+  });
 
-    setIsSubmitting(true);
-    
+  // Carregar desistências
+  const carregarDesistencias = async () => {
+    setIsLoading(true);
     try {
-      // Simulate API call to submit the withdrawal request
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Add to local state (in a real app, this would come from the API response)
-      const novaSolicitacao: SolicitacaoDesistencia = {
-        id: (solicitacoes.length + 1).toString(),
-        numeroTitulo,
-        protocolo,
-        devedor,
-        valor,
-        data: new Date().toISOString().split('T')[0],
-        motivo,
-        status: "Pendente"
-      };
-      
-      setSolicitacoes([novaSolicitacao, ...solicitacoes]);
-      
-      toast({
-        title: "Solicitação enviada com sucesso",
-        description: `A solicitação de desistência para o título ${numeroTitulo} foi enviada.`,
+      const response = await api.get("/desistencias", {
+        params: {
+          ...filtros,
+          page,
+          per_page: 10
+        }
       });
-      
-      // Reset form
-      setNumeroTitulo("");
-      setProtocolo("");
-      setDevedor("");
-      setValor("");
-      setMotivo("");
-      setObservacoes("");
+      setDesistencias(response.data.items);
+      setTotalPages(Math.ceil(response.data.total / 10));
     } catch (error) {
       toast({
-        title: "Erro ao enviar solicitação",
-        description: "Ocorreu um erro ao enviar a solicitação. Tente novamente.",
+        title: "Erro ao carregar desistências",
+        description: "Ocorreu um erro ao carregar as desistências. Tente novamente.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarDesistencias();
+  }, [page, filtros]);
+
+  // Criar nova desistência
+  const criarDesistencia = async (dados: Partial<Desistencia>) => {
+    try {
+      await api.post("/desistencias", dados);
+      toast({
+        title: "Desistência criada",
+        description: "A solicitação de desistência foi criada com sucesso."
+      });
+      carregarDesistencias();
+      setModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Erro ao criar desistência",
+        description: "Ocorreu um erro ao criar a desistência. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Atualizar desistência
+  const atualizarDesistencia = async (id: string, dados: Partial<Desistencia>) => {
+    try {
+      await api.put(`/desistencias/${id}`, dados);
+      toast({
+        title: "Desistência atualizada",
+        description: "A solicitação de desistência foi atualizada com sucesso."
+      });
+      carregarDesistencias();
+      setModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar desistência",
+        description: "Ocorreu um erro ao atualizar a desistência. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Aprovada":
-        return "text-green-500 dark:text-green-400";
-      case "Pendente":
-        return "text-yellow-500 dark:text-yellow-400";
-      case "Rejeitada":
-        return "text-red-500 dark:text-red-400";
+      case "APROVADA":
+        return "text-green-500";
+      case "PENDENTE":
+        return "text-yellow-500";
+      case "REJEITADA":
+        return "text-red-500";
       default:
         return "";
     }
@@ -145,150 +134,259 @@ export function Desistencias() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">SISTEMA DE PROTESTO</h1>
-        <h2 className="text-xl">Solicitações de Desistência</h2>
-        <p className="text-muted-foreground">Envie pedidos de desistência de protesto.</p>
+        <h1 className="text-2xl font-bold">Desistências de Protesto</h1>
+        <p className="text-muted-foreground">Gerencie as solicitações de desistência de protesto.</p>
       </div>
-      
-      {/* Search Form */}
+
+      {/* Filtros */}
       <Card>
         <CardHeader>
-          <CardTitle>Buscar Título para Desistência</CardTitle>
+          <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Input 
-                  placeholder="Número do Título" 
-                  value={numeroTituloBusca}
-                  onChange={(e) => setNumeroTituloBusca(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input 
-                  placeholder="Digite o protocolo" 
-                  value={protocoloBusca}
-                  onChange={(e) => setProtocoloBusca(e.target.value)}
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={isSearching}>
-              {isSearching ? "Buscando..." : "Buscar"}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              placeholder="Número do Título"
+              value={filtros.numeroTitulo || ""}
+              onChange={(e) => setFiltros({ ...filtros, numeroTitulo: e.target.value })}
+            />
+            <Input
+              placeholder="Protocolo"
+              value={filtros.protocolo || ""}
+              onChange={(e) => setFiltros({ ...filtros, protocolo: e.target.value })}
+            />
+            <Select
+              value={filtros.status}
+              onValueChange={(value) => setFiltros({ ...filtros, status: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PENDENTE">Pendente</SelectItem>
+                <SelectItem value="APROVADA">Aprovada</SelectItem>
+                <SelectItem value="REJEITADA">Rejeitada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <Input
+              type="date"
+              value={filtros.dataInicial || ""}
+              onChange={(e) => setFiltros({ ...filtros, dataInicial: e.target.value })}
+            />
+            <Input
+              type="date"
+              value={filtros.dataFinal || ""}
+              onChange={(e) => setFiltros({ ...filtros, dataFinal: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setFiltros({})}
+            >
+              Limpar
             </Button>
-          </form>
+            <Button
+              onClick={() => carregarDesistencias()}
+              disabled={isLoading}
+            >
+              Buscar
+            </Button>
+          </div>
         </CardContent>
       </Card>
-      
-      {/* Submission Form */}
+
+      {/* Tabela de Desistências */}
       <Card>
-        <CardHeader>
-          <CardTitle>Formulário de Solicitação</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Número do Título</label>
-                <Input 
-                  value={numeroTitulo}
-                  onChange={(e) => setNumeroTitulo(e.target.value)}
-                  readOnly={!!numeroTituloBusca}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Protocolo</label>
-                <Input 
-                  value={protocolo}
-                  onChange={(e) => setProtocolo(e.target.value)}
-                  readOnly={!!protocoloBusca}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nome do Devedor</label>
-                <Input 
-                  value={devedor}
-                  onChange={(e) => setDevedor(e.target.value)}
-                  readOnly={!!numeroTituloBusca || !!protocoloBusca}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Valor</label>
-                <Input 
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  readOnly={!!numeroTituloBusca || !!protocoloBusca}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Motivo da Desistência</label>
-              <Select value={motivo} onValueChange={setMotivo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um motivo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pagamento direto ao credor">Pagamento direto ao credor</SelectItem>
-                  <SelectItem value="Acordo entre as partes">Acordo entre as partes</SelectItem>
-                  <SelectItem value="Erro no envio do título">Erro no envio do título</SelectItem>
-                  <SelectItem value="Duplicidade de protesto">Duplicidade de protesto</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Observações</label>
-              <Textarea 
-                placeholder="Adicione informações relevantes sobre a solicitação"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-              />
-            </div>
-            
-            <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
-              {isSubmitting ? "Enviando..." : "Enviar Solicitação"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      
-      {/* History */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Solicitações</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Desistências</CardTitle>
+          <Button onClick={() => {
+            setSelectedDesistencia(null);
+            setModalOpen(true);
+          }}>
+            Nova Desistência
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Número</TableHead>
+                <TableHead>Número do Título</TableHead>
+                <TableHead>Protocolo</TableHead>
                 <TableHead>Devedor</TableHead>
-                <TableHead>Data</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Data Solicitação</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Motivo</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {solicitacoes.map((solicitacao) => (
-                <TableRow key={solicitacao.id}>
-                  <TableCell>{solicitacao.numeroTitulo}</TableCell>
-                  <TableCell>{solicitacao.devedor}</TableCell>
-                  <TableCell>{new Date(solicitacao.data).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell className={getStatusColor(solicitacao.status)}>
-                    {solicitacao.status}
+              {desistencias.map((desistencia) => (
+                <TableRow key={desistencia.id}>
+                  <TableCell>{desistencia.numeroTitulo}</TableCell>
+                  <TableCell>{desistencia.protocolo}</TableCell>
+                  <TableCell>{desistencia.devedor}</TableCell>
+                  <TableCell>
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(desistencia.valor)}
                   </TableCell>
-                  <TableCell>{solicitacao.motivo}</TableCell>
+                  <TableCell>
+                    {new Date(desistencia.dataSolicitacao).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                  <TableCell>
+                    <span className={getStatusColor(desistencia.status)}>
+                      {desistencia.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDesistencia(desistencia);
+                        setModalOpen(true);
+                      }}
+                    >
+                      Editar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+
+          {/* Paginação */}
+          <div className="flex justify-center space-x-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Próxima
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Criação/Edição */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDesistencia ? "Editar Desistência" : "Nova Desistência"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDesistencia
+                ? "Edite os dados da solicitação de desistência."
+                : "Preencha os dados para criar uma nova solicitação de desistência."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const dados = {
+                numeroTitulo: formData.get("numeroTitulo") as string,
+                protocolo: formData.get("protocolo") as string,
+                devedor: formData.get("devedor") as string,
+                valor: parseFloat(formData.get("valor") as string),
+                motivo: formData.get("motivo") as string,
+                observacoes: formData.get("observacoes") as string,
+              };
+
+              if (selectedDesistencia) {
+                atualizarDesistencia(selectedDesistencia.id, dados);
+              } else {
+                criarDesistencia(dados);
+              }
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Número do Título</label>
+                <Input
+                  name="numeroTitulo"
+                  defaultValue={selectedDesistencia?.numeroTitulo}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Protocolo</label>
+                <Input
+                  name="protocolo"
+                  defaultValue={selectedDesistencia?.protocolo}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Devedor</label>
+              <Input
+                name="devedor"
+                defaultValue={selectedDesistencia?.devedor}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valor</label>
+              <Input
+                name="valor"
+                type="number"
+                step="0.01"
+                defaultValue={selectedDesistencia?.valor}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Motivo</label>
+              <Textarea
+                name="motivo"
+                defaultValue={selectedDesistencia?.motivo}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Observações</label>
+              <Textarea
+                name="observacoes"
+                defaultValue={selectedDesistencia?.observacoes}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {selectedDesistencia ? "Salvar" : "Criar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

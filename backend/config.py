@@ -15,6 +15,15 @@ class Config:
     # Configurações de CORS
     CORS_HEADERS = 'Content-Type'
     
+    # Configurações de e-mail
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'false').lower() in ['true', 'on', '1']
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@protestosystem.com')
+    
     @staticmethod
     def init_app(app):
         pass
@@ -24,7 +33,7 @@ class DevelopmentConfig(Config):
     """Configuração de desenvolvimento"""
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protest_system'
+        'postgresql://postgres:postgres@localhost:  /protest_system'
 
 
 class TestingConfig(Config):

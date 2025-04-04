@@ -99,14 +99,16 @@ class Remessa(db.Model):
     __tablename__ = 'remessas'
     
     id = db.Column(db.Integer, primary_key=True)
-    nome_arquivo = db.Column(db.String(255))
-    data_envio = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), index=True)  # Processado, Erro, Pendente
+    nome_arquivo = db.Column(db.String(100))
+    status = db.Column(db.String(20), index=True)  # Processado, Pendente, Erro
     uf = db.Column(db.String(2))
-    tipo = db.Column(db.String(20))  # Remessa, Desistência
+    tipo = db.Column(db.String(20))  # Remessa, Confirmação, Retorno
+    data_envio = db.Column(db.DateTime, default=datetime.utcnow)
     quantidade_titulos = db.Column(db.Integer, default=0)
+    task_id = db.Column(db.String(50), nullable=True)  # ID da tarefa assíncrona
     
     # Relacionamentos
+    usuario_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     titulos = db.relationship('Titulo', backref='remessa', lazy='dynamic')
     erros = db.relationship('Erro', backref='remessa', lazy='dynamic')
     
@@ -246,4 +248,84 @@ class Erro(db.Model):
             'resolvido': self.resolvido,
             'data_resolucao': self.data_resolucao.isoformat() if self.data_resolucao else None,
             'usuario_resolucao_id': self.usuario_resolucao_id
+        }
+
+class AutorizacaoCancelamento(db.Model):
+    """Modelo para autorizações de cancelamento de protesto"""
+    __tablename__ = 'autorizacoes_cancelamento'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    arquivo_nome = db.Column(db.String(255))
+    codigo_apresentante = db.Column(db.String(3))
+    nome_apresentante = db.Column(db.String(45))
+    data_movimento = db.Column(db.Date)
+    quantidade_solicitacoes = db.Column(db.Integer, default=0)
+    sequencia_registro = db.Column(db.String(5), nullable=True)
+    data_processamento = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), index=True)  # Processado, Erro, Pendente
+    
+    # Metadados
+    usuario_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relacionamentos
+    usuario = db.relationship('User', backref='autorizacoes_cancelamento')
+    transacoes = db.relationship('TransacaoAutorizacaoCancelamento', backref='autorizacao', lazy='dynamic')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'arquivo_nome': self.arquivo_nome,
+            'codigo_apresentante': self.codigo_apresentante,
+            'nome_apresentante': self.nome_apresentante,
+            'data_movimento': self.data_movimento.isoformat() if self.data_movimento else None,
+            'quantidade_solicitacoes': self.quantidade_solicitacoes,
+            'sequencia_registro': self.sequencia_registro,
+            'data_processamento': self.data_processamento.isoformat() if self.data_processamento else None,
+            'status': self.status,
+            'usuario_id': self.usuario_id,
+            'data_upload': self.data_upload.isoformat() if self.data_upload else None,
+            'transacoes_count': self.transacoes.count()
+        }
+
+class TransacaoAutorizacaoCancelamento(db.Model):
+    """Modelo para transações de autorização de cancelamento"""
+    __tablename__ = 'transacoes_autorizacao_cancelamento'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    autorizacao_id = db.Column(db.Integer, db.ForeignKey('autorizacoes_cancelamento.id'))
+    titulo_id = db.Column(db.Integer, db.ForeignKey('titulos.id'), nullable=True)
+    numero_protocolo = db.Column(db.String(10))
+    data_protocolizacao = db.Column(db.Date)
+    numero_titulo = db.Column(db.String(11))
+    nome_devedor = db.Column(db.String(45))
+    valor_titulo = db.Column(db.Numeric(14, 2))
+    solicitacao_cancelamento = db.Column(db.String(1))  # Fixo 'A'
+    agencia_conta = db.Column(db.String(12), nullable=True)
+    carteira_nosso_numero = db.Column(db.String(12), nullable=True)
+    numero_controle = db.Column(db.String(6), nullable=True)
+    sequencia_registro = db.Column(db.String(5), nullable=True)
+    status = db.Column(db.String(20), index=True)  # Processado, Pendente, Erro
+    data_processamento = db.Column(db.DateTime, nullable=True)
+    
+    # Relacionamentos
+    titulo = db.relationship('Titulo', backref='autorizacoes_cancelamento')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'autorizacao_id': self.autorizacao_id,
+            'titulo_id': self.titulo_id,
+            'numero_protocolo': self.numero_protocolo,
+            'data_protocolizacao': self.data_protocolizacao.isoformat() if self.data_protocolizacao else None,
+            'numero_titulo': self.numero_titulo,
+            'nome_devedor': self.nome_devedor,
+            'valor_titulo': float(self.valor_titulo) if self.valor_titulo else None,
+            'solicitacao_cancelamento': self.solicitacao_cancelamento,
+            'agencia_conta': self.agencia_conta,
+            'carteira_nosso_numero': self.carteira_nosso_numero,
+            'numero_controle': self.numero_controle,
+            'sequencia_registro': self.sequencia_registro,
+            'status': self.status,
+            'data_processamento': self.data_processamento.isoformat() if self.data_processamento else None
         }

@@ -104,13 +104,26 @@ def upload_remessa():
     db.session.add(remessa)
     db.session.commit()
     
-    # Iniciar processamento assíncrono (em um sistema real, isso seria feito por um worker)
-    # Por enquanto, vamos processar de forma síncrona para simplificar
+    # Iniciar processamento assíncrono usando o sistema de filas
     try:
-        processar_remessa(remessa.id, file_path)
+        from app.utils.async_tasks import enqueue_task
+        
+        # Enfileira a tarefa de processamento
+        task_id = enqueue_task(
+            processar_remessa,
+            f"Processamento da remessa {remessa.id}",
+            remessa.id, 
+            file_path
+        )
+        
+        # Atualiza a remessa com o ID da tarefa
+        remessa.task_id = task_id
+        db.session.commit()
+        
         return jsonify({
-            'message': 'Arquivo enviado com sucesso',
-            'remessa': remessa.to_dict()
+            'message': 'Arquivo enviado com sucesso. O processamento foi iniciado em segundo plano.',
+            'remessa': remessa.to_dict(),
+            'task_id': task_id
         }), 201
     except Exception as e:
         # Registrar erro

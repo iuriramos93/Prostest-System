@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Download, FileText, FileSpreadsheet, PieChart, BarChart, LineChart } from "lucide-react";
+import { RelatoriosService } from "@/services/relatorios";
 
 export function Relatorios() {
   const [tipoRelatorio, setTipoRelatorio] = useState("");
@@ -15,11 +16,43 @@ export function Relatorios() {
   const [uf, setUf] = useState("");
   const [formato, setFormato] = useState("pdf");
   const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [relatorioGerado, setRelatorioGerado] = useState(false);
+  const [urlDownload, setUrlDownload] = useState("");
+  const [dadosDashboard, setDadosDashboard] = useState<any>(null);
+  const [historicoRelatorios, setHistoricoRelatorios] = useState<any[]>([]);
   const { toast } = useToast();
 
-  const handleGerarRelatorio = (e: React.FormEvent) => {
+  useEffect(() => {
+    carregarDadosDashboard();
+    carregarHistorico();
+  }, []);
+
+  const carregarDadosDashboard = async () => {
+    try {
+      const dados = await RelatoriosService.obterDadosDashboard();
+      setDadosDashboard(dados);
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar dashboard",
+        description: "Não foi possível carregar os dados do dashboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const carregarHistorico = async () => {
+    try {
+      const { relatorios } = await RelatoriosService.obterHistoricoRelatorios();
+      setHistoricoRelatorios(relatorios);
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar histórico",
+        description: "Não foi possível carregar o histórico de relatórios.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGerarRelatorio = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!tipoRelatorio || !dataInicio || !dataFim) {
@@ -32,39 +65,51 @@ export function Relatorios() {
     }
 
     setIsLoading(true);
-    setProgress(0);
-    setRelatorioGerado(false);
+    setUrlDownload("");
     
-    // Simulação de geração de relatório
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsLoading(false);
-          setRelatorioGerado(true);
-          toast({
-            title: "Relatório gerado com sucesso",
-            description: `O relatório de ${tipoRelatorio} foi gerado no formato ${formato.toUpperCase()}.`,
-          });
-          return 100;
+    try {
+      const resposta = await RelatoriosService.gerarRelatorio(
+        tipoRelatorio as any,
+        {
+          dataInicio,
+          dataFim,
+          uf,
+          formato: formato as any
         }
-        return prev + 10;
+      );
+
+      if (resposta.url_download) {
+        setUrlDownload(resposta.url_download);
+      }
+
+      toast({
+        title: "Relatório gerado com sucesso",
+        description: `O relatório de ${tipoRelatorio} foi gerado no formato ${formato.toUpperCase()}.`,
       });
-    }, 300);
+
+      await carregarHistorico();
+    } catch (error) {
+      toast({
+        title: "Erro ao gerar relatório",
+        description: "Ocorreu um erro ao gerar o relatório. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDownload = () => {
-    toast({
-      title: "Download iniciado",
-      description: `O relatório está sendo baixado no formato ${formato.toUpperCase()}.`,
-    });
+    if (urlDownload) {
+      window.open(urlDownload, '_blank');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Relatórios</h1>
-        <p className="text-muted-foreground">Gere relatórios detalhados.</p>
+        <p className="text-muted-foreground">Gere relatórios detalhados do sistema.</p>
       </div>
       
       <Tabs defaultValue="gerar" className="space-y-6">
@@ -78,6 +123,7 @@ export function Relatorios() {
           <Card>
             <CardHeader>
               <CardTitle>Formulário de Geração</CardTitle>
+              <CardDescription>Preencha os campos para gerar um novo relatório</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleGerarRelatorio} className="space-y-6">
@@ -159,7 +205,7 @@ export function Relatorios() {
                           name="formato" 
                           value="pdf"
                           checked={formato === "pdf"}
-                          onChange={() => setFormato("pdf")}
+                          onChange={(e) => setFormato(e.target.value)}
                           className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                         />
                         <label htmlFor="pdf" className="text-sm">PDF</label>
@@ -171,7 +217,7 @@ export function Relatorios() {
                           name="formato" 
                           value="excel"
                           checked={formato === "excel"}
-                          onChange={() => setFormato("excel")}
+                          onChange={(e) => setFormato(e.target.value)}
                           className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                         />
                         <label htmlFor="excel" className="text-sm">Excel</label>
@@ -183,7 +229,7 @@ export function Relatorios() {
                           name="formato" 
                           value="csv"
                           checked={formato === "csv"}
-                          onChange={() => setFormato("csv")}
+                          onChange={(e) => setFormato(e.target.value)}
                           className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                         />
                         <label htmlFor="csv" className="text-sm">CSV</label>
@@ -192,30 +238,14 @@ export function Relatorios() {
                   </div>
                 </div>
                 
-                {isLoading && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Gerando relatório...</span>
-                      <span>{progress}%</span>
-                    </div>
-                    <Progress value={progress} />
-                  </div>
-                )}
-                
                 <div className="flex space-x-4">
-                  <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
+                  <Button type="submit" disabled={isLoading}>
                     {isLoading ? "Gerando..." : "Gerar Relatório"}
                   </Button>
-                  
-                  {relatorioGerado && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleDownload}
-                      className="w-full md:w-auto"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
+                  {urlDownload && (
+                    <Button type="button" variant="outline" onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar Relatório
                     </Button>
                   )}
                 </div>
@@ -223,106 +253,117 @@ export function Relatorios() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="historico">
           <Card>
             <CardHeader>
               <CardTitle>Histórico de Relatórios</CardTitle>
+              <CardDescription>Relatórios gerados anteriormente</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="border rounded-md p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">Relatório de Remessas</h3>
-                      <p className="text-sm text-muted-foreground">Período: 01/10/2023 - 31/10/2023</p>
+                {historicoRelatorios.map((relatorio) => (
+                  <div key={relatorio.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      {relatorio.formato === 'pdf' ? (
+                        <FileText className="h-6 w-6 text-blue-500" />
+                      ) : (
+                        <FileSpreadsheet className="h-6 w-6 text-green-500" />
+                      )}
+                      <div>
+                        <p className="font-medium">{relatorio.tipo}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Gerado em {new Date(relatorio.data_geracao).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileSpreadsheet className="h-4 w-4 mr-1" />
-                        Excel
-                      </Button>
-                    </div>
+                    <Button variant="ghost" onClick={() => window.open(relatorio.url_download, '_blank')}>
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-                
-                <div className="border rounded-md p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">Relatório de Títulos</h3>
-                      <p className="text-sm text-muted-foreground">Período: 01/09/2023 - 30/09/2023</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileSpreadsheet className="h-4 w-4 mr-1" />
-                        Excel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="border rounded-md p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">Relatório Financeiro</h3>
-                      <p className="text-sm text-muted-foreground">Período: 01/08/2023 - 31/08/2023</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileSpreadsheet className="h-4 w-4 mr-1" />
-                        Excel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                ))}
+                {historicoRelatorios.length === 0 && (
+                  <p className="text-center text-muted-foreground">Nenhum relatório encontrado</p>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="dashboard">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Remessas por Status</CardTitle>
+                <CardTitle>Títulos por Status</CardTitle>
               </CardHeader>
-              <CardContent className="flex justify-center">
-                <div className="h-64 w-64 flex items-center justify-center border rounded-full">
-                  <PieChart className="h-12 w-12 text-muted-foreground" />
-                </div>
+              <CardContent>
+                {dadosDashboard?.titulos_por_status && (
+                  <div className="space-y-4">
+                    {Object.entries(dadosDashboard.titulos_por_status).map(([status, quantidade]) => (
+                      <div key={status} className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">{status}</span>
+                          <span className="text-sm text-muted-foreground">{quantidade}</span>
+                        </div>
+                        <Progress value={(quantidade as number / Object.values(dadosDashboard.titulos_por_status).reduce((a, b) => a + (b as number), 0)) * 100} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
-                <CardTitle>Títulos por Mês</CardTitle>
+                <CardTitle>Remessas por Mês</CardTitle>
               </CardHeader>
-              <CardContent className="flex justify-center">
-                <div className="h-64 w-full flex items-center justify-center border rounded-md">
-                  <BarChart className="h-12 w-12 text-muted-foreground" />
+              <CardContent>
+                {dadosDashboard?.remessas_por_mes && (
+                  <div className="space-y-4">
+                    {dadosDashboard.remessas_por_mes.map((item: any) => (
+                      <div key={item.mes} className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">{item.mes}</span>
+                          <span className="text-sm text-muted-foreground">{item.quantidade}</span>
+                        </div>
+                        <Progress value={(item.quantidade / Math.max(...dadosDashboard.remessas_por_mes.map((i: any) => i.quantidade))) * 100} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Valor Total Protestado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {dadosDashboard?.valor_total_protestado
+                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+                        .format(dadosDashboard.valor_total_protestado)
+                    : 'R$ 0,00'}
                 </div>
               </CardContent>
             </Card>
-            
-            <Card className="md:col-span-2">
+
+            <Card>
               <CardHeader>
-                <CardTitle>Evolução de Protestos</CardTitle>
+                <CardTitle>Taxa de Sucesso no Processamento</CardTitle>
               </CardHeader>
-              <CardContent className="flex justify-center">
-                <div className="h-64 w-full flex items-center justify-center border rounded-md">
-                  <LineChart className="h-12 w-12 text-muted-foreground" />
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="text-2xl font-bold">
+                    {dadosDashboard?.taxa_sucesso_processamento
+                      ? `${(dadosDashboard.taxa_sucesso_processamento * 100).toFixed(1)}%`
+                      : '0%'}
+                  </div>
+                  <Progress
+                    value={dadosDashboard?.taxa_sucesso_processamento
+                      ? dadosDashboard.taxa_sucesso_processamento * 100
+                      : 0}
+                  />
                 </div>
               </CardContent>
             </Card>

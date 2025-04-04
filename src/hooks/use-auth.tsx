@@ -1,11 +1,16 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import axios from "axios";
 
 // Interface para o usuário
 interface User {
   id: string;
-  name: string;
+  name?: string;
+  nome_completo?: string;
   email: string;
+  username?: string;
+  cargo?: string;
+  admin?: boolean;
 }
 
 // Interface para o contexto de autenticação
@@ -15,10 +20,36 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  checkSession: () => Promise<boolean>;
 }
 
 // Criando o contexto de autenticação
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// API base URL
+const API_URL = "/api";
+
+// Configuração do axios
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Interceptor para adicionar o token em todas as requisições
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Provider para o contexto de autenticação
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,59 +59,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Verificar se o usuário está autenticado ao carregar a página
   useEffect(() => {
     const checkAuth = async () => {
-      const storedUser = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
-
-      if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
-      }
-      
+      await checkSession();
       setIsLoading(false);
     };
 
     checkAuth();
   }, []);
 
+  // Função para verificar a sessão do usuário
+  const checkSession = async (): Promise<boolean> => {
+    const token = localStorage.getItem("token");
+    
+    if (!token) {
+      setUser(null);
+      return false;
+    }
+    
+    try {
+      // Verificar se o token é válido fazendo uma requisição para obter os dados do usuário
+      const response = await api.get("/auth/me");
+      setUser(response.data);
+      return true;
+    } catch (error) {
+      console.error("Erro ao verificar sessão:", error);
+      // Se o token expirou ou é inválido, fazer logout
+      logout();
+      return false;
+    }
+  };
+
   // Função de login
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // Simulação de API para login
-      // Na versão real, isso seria substituído por uma chamada real à API
-      return new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          // Verifica credenciais (mock)
-          if (email === 'admin@example.com' && password === 'admin123') {
-            const userData = {
-              id: '1',
-              name: 'Administrador',
-              email: 'admin@example.com'
-            };
-            
-            // Salva o token e os dados do usuário (simulado)
-            localStorage.setItem('token', 'mock-jwt-token');
-            localStorage.setItem('user', JSON.stringify(userData));
-            
-            setUser(userData);
-            setIsLoading(false);
-            resolve();
-          } else {
-            setIsLoading(false);
-            reject(new Error('Credenciais inválidas'));
-          }
-        }, 1000);
+      const response = await api.post("/auth/login", {
+        email,
+        password,
       });
+      
+      const { access_token, user: userData } = response.data;
+      
+      // Salvar o token e os dados do usuário
+      localStorage.setItem("token", access_token);
+      
+      // Atualizar o estado do usuário
+      setUser(userData);
+      setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
+      console.error("Erro ao fazer login:", error);
       throw error;
     }
   };
 
   // Função de logout
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
     setUser(null);
   };
 
@@ -90,7 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       isLoading,
       login,
-      logout
+      logout,
+      checkSession
     }}>
       {children}
     </AuthContext.Provider>

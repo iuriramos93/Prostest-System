@@ -67,6 +67,9 @@ def create_app(config_name=None):
     from app.relatorios import relatorios as relatorios_blueprint
     app.register_blueprint(relatorios_blueprint, url_prefix='/api/relatorios')
     
+    from app.autorizacoes_cancelamento import autorizacoes as autorizacoes_blueprint
+    app.register_blueprint(autorizacoes_blueprint, url_prefix='/api/autorizacoes-cancelamento')
+    
     # Rota de teste para verificar se a API está funcionando
     @app.route('/api/health')
     def health_check():
