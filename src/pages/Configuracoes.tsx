@@ -11,6 +11,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Link2, Users, FileText, Settings as SettingsIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import axios from "axios";
+
+// API base URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Configuração do axios com token
+const getAuthHeader = () => {
+  const token = localStorage.getItem("token");
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  };
+};
 
 interface Usuario {
   id: string;
@@ -18,6 +33,7 @@ interface Usuario {
   email: string;
   perfil: string;
   ativo: boolean;
+  senha?: string;
 }
 
 interface Log {
@@ -29,7 +45,164 @@ interface Log {
 }
 
 export function Configuracoes() {
-  const [activeTab, setActiveTab] = useState("integracao");
+  const [activeTab, setActiveTab] = useState("usuarios");
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<Usuario | null>(null);
+  const { user: currentUser } = useAuth();
+  
+  // Estado para o formulário de novo usuário
+  const [newUser, setNewUser] = useState<Usuario>({
+    id: "",
+    nome: "",
+    email: "",
+    perfil: "Visualizador",
+    ativo: true,
+    senha: ""
+  });
+  
+  // Resetar o formulário
+  const resetUserForm = () => {
+    setNewUser({
+      id: "",
+      nome: "",
+      email: "",
+      perfil: "Visualizador",
+      ativo: true,
+      senha: ""
+    });
+  };
+  
+  // Carregar usuários do backend
+  const loadUsers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/users`, getAuthHeader());
+      setUsuarios(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de usuários.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Efeito para carregar usuários quando a página é montada
+  /*
+  useEffect(() => {
+    if (currentUser?.admin) {
+      loadUsers();
+    }
+  }, [currentUser]);
+  */
+  
+  // Função para lidar com o envio do formulário
+  const handleUserFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (editingUser) {
+        // Atualizar usuário existente
+        await axios.put(
+          `${API_URL}/auth/users/${editingUser.id}`,
+          {
+            nome_completo: newUser.nome,
+            email: newUser.email,
+            password: newUser.senha || undefined,
+            perfil: newUser.perfil,
+            ativo: newUser.ativo
+          },
+          getAuthHeader()
+        );
+        
+        toast({
+          title: "Sucesso",
+          description: "Usuário atualizado com sucesso."
+        });
+      } else {
+        // Criar novo usuário
+        await axios.post(
+          `${API_URL}/auth/users`,
+          {
+            username: newUser.email.split('@')[0], // Gera username a partir do email
+            email: newUser.email,
+            password: newUser.senha,
+            nome_completo: newUser.nome,
+            admin: newUser.perfil === "Administrador",
+            ativo: newUser.ativo
+          },
+          getAuthHeader()
+        );
+        
+        toast({
+          title: "Sucesso",
+          description: "Usuário adicionado com sucesso."
+        });
+      }
+      
+      // Atualizar a lista de usuários
+      // loadUsers();
+      
+      // Atualizar a lista de usuários (simulação)
+      if (editingUser) {
+        setUsuarios(usuarios.map(u => 
+          u.id === editingUser.id ? {...newUser} : u
+        ));
+      } else {
+        const newId = (Math.max(...usuarios.map(u => parseInt(u.id))) + 1).toString();
+        setUsuarios([...usuarios, {...newUser, id: newId}]);
+      }
+      
+      // Resetar o formulário e fechar
+      resetUserForm();
+      setShowAddUserForm(false);
+      setEditingUser(null);
+    } catch (error: any) {
+      console.error("Erro ao salvar usuário:", error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Não foi possível salvar o usuário.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Função para editar um usuário
+  const handleEditUser = (usuario: Usuario) => {
+    setEditingUser(usuario);
+    setNewUser({
+      ...usuario,
+      senha: ""
+    });
+    setShowAddUserForm(true);
+  };
+  
+  // Função para excluir um usuário
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover este usuário?")) {
+      return;
+    }
+    
+    try {
+      // Chamada à API (comentada para simulação)
+      // await axios.delete(`${API_URL}/auth/users/${id}`, getAuthHeader());
+      
+      // Atualizar a lista de usuários (simulação)
+      setUsuarios(usuarios.filter(u => u.id !== id));
+      
+      toast({
+        title: "Sucesso",
+        description: "Usuário removido com sucesso."
+      });
+    } catch (error) {
+      console.error("Erro ao remover usuário:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover o usuário.",
+        variant: "destructive"
+      });
+    }
+  };
   const [usuarios, setUsuarios] = useState<Usuario[]>([
     {
       id: "1",
@@ -84,6 +257,9 @@ export function Configuracoes() {
       description: "Suas configurações foram salvas com sucesso.",
     });
   };
+  
+  // Verificar se o usuário atual é administrador
+  const isAdmin = currentUser?.admin || true; // Temporariamente sempre true para desenvolvimento
 
   return (
     <div className="space-y-6">
@@ -181,9 +357,113 @@ export function Configuracoes() {
                 <CardTitle>Gerenciamento de Usuários</CardTitle>
                 <p className="text-sm text-muted-foreground">Crie, edite e remova acessos ao sistema.</p>
               </div>
-              <Button>Adicionar Usuário</Button>
+              <Button onClick={() => {
+                setShowAddUserForm(true);
+                setEditingUser(null);
+              }}>Adicionar Usuário</Button>
             </CardHeader>
             <CardContent>
+              {(showAddUserForm || editingUser) && (
+                <div className="mb-6 p-4 border rounded-md">
+                  <h3 className="text-lg font-medium mb-4">
+                    {editingUser ? "Editar Usuário" : "Adicionar Novo Usuário"}
+                  </h3>
+                  <form onSubmit={handleUserFormSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nome">Nome Completo</Label>
+                        <Input
+                          id="nome"
+                          value={newUser.nome}
+                          onChange={(e) => setNewUser({...newUser, nome: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={newUser.email}
+                          onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                          required
+                        />
+                      </div>
+                      {!editingUser && (
+                        <div className="space-y-2">
+                          <Label htmlFor="senha">Senha</Label>
+                          <Input
+                            id="senha"
+                            type="password"
+                            value={newUser.senha || ''}
+                            onChange={(e) => setNewUser({...newUser, senha: e.target.value})}
+                            required={!editingUser}
+                          />
+                        </div>
+                      )}
+                      {editingUser && (
+                        <div className="space-y-2">
+                          <Label htmlFor="novaSenha">Nova Senha (deixe em branco para manter a atual)</Label>
+                          <Input
+                            id="novaSenha"
+                            type="password"
+                            value={newUser.senha || ''}
+                            onChange={(e) => setNewUser({...newUser, senha: e.target.value})}
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="perfil">Nível de Privilégio</Label>
+                        <Select 
+                          value={newUser.perfil} 
+                          onValueChange={(value) => setNewUser({...newUser, perfil: value})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um nível" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Administrador">Administrador</SelectItem>
+                            <SelectItem value="Operador">Operador</SelectItem>
+                            <SelectItem value="Visualizador">Visualizador</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ativo" className="block mb-2">Status</Label>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="ativo" 
+                            checked={newUser.ativo} 
+                            onCheckedChange={(checked) => 
+                              setNewUser({...newUser, ativo: checked as boolean})
+                            }
+                          />
+                          <label htmlFor="ativo" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            Usuário Ativo
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowAddUserForm(false);
+                          setEditingUser(null);
+                          resetUserForm();
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit">
+                        {editingUser ? "Atualizar" : "Adicionar"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -206,8 +486,21 @@ export function Configuracoes() {
                         </span>
                       </TableCell>
                       <TableCell className="space-x-2">
-                        <Button variant="outline" size="sm">Editar</Button>
-                        <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700">Remover</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditUser(usuario)}
+                        >
+                          Editar
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDeleteUser(usuario.id)}
+                        >
+                          Remover
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -171,7 +171,6 @@ CREATE TABLE transacoes_autorizacao_cancelamento (
     status VARCHAR(20) NOT NULL,
     data_processamento TIMESTAMP
 );
-
 -- Índices para a tabela transacoes_autorizacao_cancelamento
 CREATE INDEX idx_transacoes_autorizacao_id ON transacoes_autorizacao_cancelamento(autorizacao_id);
 CREATE INDEX idx_transacoes_titulo_id ON transacoes_autorizacao_cancelamento(titulo_id);

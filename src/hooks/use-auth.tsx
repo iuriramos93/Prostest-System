@@ -27,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API base URL
-const API_URL = "/api";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Configuração do axios
 const api = axios.create({
@@ -89,13 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Função de login
+  // Update the API URL to ensure it's correctly pointing to your API service
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  
+  // Then update the login function to use the correct endpoint
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    
     try {
-      const response = await api.post("/auth/login", {
+      // Note the URL format - make sure it matches your backend route structure
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
-        password,
+        password
       });
       
       const { access_token, user: userData } = response.data;

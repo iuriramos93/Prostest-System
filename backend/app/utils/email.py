@@ -7,46 +7,33 @@ from flask import current_app, render_template
 from typing import List, Optional, Dict, Any
 
 
+# Modify the EmailSender class to use lazy initialization
+from flask import current_app
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 class EmailSender:
-    """Classe para envio de e-mails"""
-    
     def __init__(self):
-        self.smtp_server = current_app.config.get('MAIL_SERVER')
-        self.smtp_port = current_app.config.get('MAIL_PORT')
-        self.smtp_username = current_app.config.get('MAIL_USERNAME')
-        self.smtp_password = current_app.config.get('MAIL_PASSWORD')
-        self.use_tls = current_app.config.get('MAIL_USE_TLS', False)
-        self.use_ssl = current_app.config.get('MAIL_USE_SSL', False)
-        self.default_sender = current_app.config.get('MAIL_DEFAULT_SENDER')
+        # Don't initialize SMTP settings here - do it lazily when needed
+        self.smtp_server = None
+        self.smtp_port = None
+        self.smtp_username = None
+        self.smtp_password = None
+        self.sender_email = None
+        self._initialized = False
     
-    def send_email(self, 
-                  to: List[str], 
-                  subject: str, 
-                  body: str, 
-                  html: Optional[str] = None, 
-                  cc: Optional[List[str]] = None, 
-                  bcc: Optional[List[str]] = None, 
-                  attachments: Optional[List[Dict[str, Any]]] = None,
-                  sender: Optional[str] = None) -> bool:
-        """Envia um e-mail
-        
-        Args:
-            to: Lista de destinatários
-            subject: Assunto do e-mail
-            body: Corpo do e-mail em texto plano
-            html: Corpo do e-mail em HTML (opcional)
-            cc: Lista de destinatários em cópia (opcional)
-            bcc: Lista de destinatários em cópia oculta (opcional)
-            attachments: Lista de anexos (opcional)
-                Cada anexo deve ser um dicionário com as chaves:
-                - filename: Nome do arquivo
-                - content: Conteúdo do arquivo em bytes
-                - content_type: Tipo de conteúdo (opcional, padrão: application/octet-stream)
-            sender: Remetente (opcional, usa o padrão configurado se não informado)
-            
-        Returns:
-            bool: True se o e-mail foi enviado com sucesso, False caso contrário
-        """
+    def _initialize(self):
+        if not self._initialized:
+            self.smtp_server = current_app.config.get('MAIL_SERVER')
+            self.smtp_port = current_app.config.get('MAIL_PORT')
+            self.smtp_username = current_app.config.get('MAIL_USERNAME')
+            self.smtp_password = current_app.config.get('MAIL_PASSWORD')
+            self.sender_email = current_app.config.get('MAIL_DEFAULT_SENDER')
+            self._initialized = True
+    
+    def send_email(self, to, subject, body, is_html=False):
+        self._initialize()  # Initialize only when needed
         try:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject

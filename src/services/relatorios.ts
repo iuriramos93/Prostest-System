@@ -45,7 +45,10 @@ export const RelatoriosService = {
       return {
         resumo: {
           data_geracao: new Date().toISOString(),
-          filtros_aplicados: filtros as Record<string, string>
+          filtros_aplicados: Object.entries(filtros).reduce((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {} as Record<string, string>)
         },
         dados: [],
         url_download: url
@@ -74,7 +77,25 @@ export const RelatoriosService = {
     valor_total_protestado: number;
     taxa_sucesso_processamento: number;
   }> {
-    const response = await axios.get(`${API_URL}/dashboard`);
-    return response.data;
+    try {
+      const response = await axios.get(`${API_URL}/dashboard`);
+      // Garantir que todos os campos esperados existam no objeto retornado
+      const data = response.data || {};
+      return {
+        titulos_por_status: data.titulos_por_status || {},
+        remessas_por_mes: data.remessas_por_mes || [],
+        valor_total_protestado: data.valor_total_protestado || 0,
+        taxa_sucesso_processamento: data.taxa_sucesso_processamento || 0
+      };
+    } catch (error) {
+      console.error('Erro ao obter dados do dashboard:', error);
+      // Retornar objeto vazio em caso de erro para evitar quebras na interface
+      return {
+        titulos_por_status: {},
+        remessas_por_mes: [],
+        valor_total_protestado: 0,
+        taxa_sucesso_processamento: 0
+      };
+    }
   }
 };

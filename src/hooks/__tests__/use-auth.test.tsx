@@ -1,9 +1,11 @@
 import { render, act, renderHook, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../use-auth';
 import axios from 'axios';
-import { render, screen, fireEvent } from '@testing-library/react';
 
-// Mock axios
+// Remove duplicate imports
+//import { render, screen, fireEvent } from '@testing-library/react';
+
+// Single axios mock definition
 jest.mock('axios', () => ({
   create: jest.fn(() => ({
     get: jest.fn(),
@@ -15,7 +17,7 @@ jest.mock('axios', () => ({
   }))
 }));
 
-describe('useAuth hook', () => {
+describe('useAuth Hook', () => {
   const mockAxios = axios as jest.Mocked<typeof axios>;
   const mockApi = mockAxios.create();
 
@@ -24,7 +26,17 @@ describe('useAuth hook', () => {
     jest.clearAllMocks();
   });
 
-  it('should handle login successfully', async () => {
+  it('should initialize with unauthenticated user', () => {
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: AuthProvider
+    });
+
+    expect(result.current.user).toBeNull();
+    expect(result.current.isAuthenticated).toBeFalsy();
+    expect(result.current.isLoading).toBeTruthy();
+  });
+
+  it('should authenticate user with valid credentials', async () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
@@ -35,87 +47,17 @@ describe('useAuth hook', () => {
       data: { token: 'fake-token', user: mockUser }
     });
 
-    let result: any;
-
-    function TestComponent() {
-      result = useAuth();
-      return null;
-    }
-
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    await act(async () => {
-      await result.login('test@example.com', 'password');
-    });
-
-    expect(localStorage.getItem('token')).toBe('fake-token');
-    expect(result.user).toEqual(mockUser);
-    expect(result.isAuthenticated).toBe(true);
-  });
-});
-
-
-// Mock do axios
-jest.mock('axios', () => ({
-  create: jest.fn(() => ({
-    interceptors: {
-      request: { use: jest.fn() }
-    },
-    get: jest.fn(),
-    post: jest.fn()
-  }))
-}));
-
-const mockAxios = axios.create() as jest.Mocked<typeof axios>;
-
-describe('useAuth Hook', () => {
-  beforeEach(() => {
-    // Limpar o localStorage antes de cada teste
-    localStorage.clear();
-    jest.clearAllMocks();
-  });
-
-  it('deve iniciar com usuário não autenticado', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider
-    });
-
-    expect(result.current.user).toBeNull();
-    expect(result.current.isAuthenticated).toBeFalsy();
-    expect(result.current.isLoading).toBeTruthy();
-  });
-
-  it('deve autenticar usuário com credenciais válidas', async () => {
-    const mockUser = {
-      id: '1',
-      email: 'teste@exemplo.com',
-      nome_completo: 'Usuário Teste'
-    };
-
-    const mockResponse = {
-      data: {
-        access_token: 'token-teste',
-        user: mockUser
-      }
-    };
-
-    (mockAxios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
-
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider
     });
 
     await act(async () => {
-      await result.current.login('teste@exemplo.com', 'senha123');
+      await result.current.login('test@example.com', 'password');
     });
 
     expect(result.current.user).toEqual(mockUser);
     expect(result.current.isAuthenticated).toBeTruthy();
-    expect(localStorage.getItem('token')).toBe('token-teste');
+    expect(localStorage.getItem('token')).toBe('fake-token');
   });
 
   it('deve manter sessão ativa com token válido', async () => {

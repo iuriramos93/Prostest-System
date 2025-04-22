@@ -299,13 +299,13 @@ export function Relatorios() {
               <CardContent>
                 {dadosDashboard?.titulos_por_status && (
                   <div className="space-y-4">
-                    {Object.entries(dadosDashboard.titulos_por_status).map(([status, quantidade]) => (
+                    {Object.entries(dadosDashboard?.titulos_por_status || {}).map(([status, quantidade]) => (
                       <div key={status} className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-sm font-medium">{status}</span>
-                          <span className="text-sm text-muted-foreground">{quantidade}</span>
+                          <span className="text-sm text-muted-foreground">{String(quantidade)}</span>
                         </div>
-                        <Progress value={(quantidade as number / Object.values(dadosDashboard.titulos_por_status).reduce((a, b) => a + (b as number), 0)) * 100} />
+                        <Progress value={Number(quantidade) / (Object.values(dadosDashboard?.titulos_por_status || {}).reduce((a: number, b: unknown) => a + Number(b), 0) || 1) * 100} />
                       </div>
                     ))}
                   </div>
@@ -324,9 +324,9 @@ export function Relatorios() {
                       <div key={item.mes} className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-sm font-medium">{item.mes}</span>
-                          <span className="text-sm text-muted-foreground">{item.quantidade}</span>
+                          <span className="text-sm text-muted-foreground">{String(item.quantidade)}</span>
                         </div>
-                        <Progress value={(item.quantidade / Math.max(...dadosDashboard.remessas_por_mes.map((i: any) => i.quantidade))) * 100} />
+                        <Progress value={(Number(item.quantidade) / Math.max(...(dadosDashboard?.remessas_por_mes?.map((i: any) => Number(i.quantidade)) || [1]))) * 100} />
                       </div>
                     ))}
                   </div>
@@ -361,7 +361,7 @@ export function Relatorios() {
                   </div>
                   <Progress
                     value={dadosDashboard?.taxa_sucesso_processamento
-                      ? dadosDashboard.taxa_sucesso_processamento * 100
+                      ? Number(dadosDashboard.taxa_sucesso_processamento) * 100
                       : 0}
                   />
                 </div>
