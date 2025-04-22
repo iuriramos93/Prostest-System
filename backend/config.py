@@ -33,7 +33,7 @@ class DevelopmentConfig(Config):
     """Configuração de desenvolvimento"""
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:  /protest_system'
+        'postgresql://postgres:postgres@localhost:5432/protest_system'
 
 
 class TestingConfig(Config):
