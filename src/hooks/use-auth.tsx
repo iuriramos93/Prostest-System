@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       // Usando a URL base correta
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password
       });

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build: .
@@ -52,6 +50,10 @@ services:
       - db
     networks:
       - protest-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ../dados_teste.sql:/dados_teste.sql
+      - ../database_schema.sql:/database_schema.sql
 
   frontend:
     image: node:18
@@ -75,3 +77,4 @@ networks:
 
 volumes:
   postgres_data:
+  pgadmin_data:

@@ -235,7 +235,8 @@ def update_titulo_status(id):
       404:
         description: Título não encontrado
     """
-    user_id = get_jwt_identity()
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
     if not current_user:

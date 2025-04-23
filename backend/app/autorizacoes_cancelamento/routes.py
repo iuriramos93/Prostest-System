@@ -74,7 +74,8 @@ def upload_file():
     file.save(file_path)
     
     # Obter o usuário atual
-    current_user_id = get_jwt_identity()
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
     user = User.query.get(current_user_id)
     
     # Criar registro de autorização de cancelamento
