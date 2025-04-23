@@ -54,12 +54,12 @@ services:
       - protest-network
 
   frontend:
-    image: node:16
+    image: node:18
     working_dir: /app
     volumes:
       - ../:/app
     ports:
-      - "3000:3000"
+      - "5173:5173"
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
     command: >

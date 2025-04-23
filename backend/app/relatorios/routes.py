@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from io import BytesIO
 from flask import request, jsonify, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from sqlalchemy import func, desc, and_, or_
 from app import db
 from app.models import Titulo, Remessa, Erro, Desistencia, User, Credor, Devedor
@@ -13,7 +13,7 @@ import tempfile
 import os
 
 @relatorios.route('/titulos', methods=['GET'])
-@jwt_required()
+@auth_required()
 def relatorio_titulos():
     """
     Gera relatório de títulos com filtros opcionais
@@ -118,7 +118,7 @@ def relatorio_titulos():
         }), 200
 
 @relatorios.route('/remessas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def relatorio_remessas():
     """
     Gera relatório de remessas com filtros opcionais
@@ -227,7 +227,7 @@ def relatorio_remessas():
         }), 200
 
 @relatorios.route('/erros', methods=['GET'])
-@jwt_required()
+@auth_required()
 def relatorio_erros():
     """
     Gera relatório de erros com filtros opcionais
@@ -343,7 +343,7 @@ def relatorio_erros():
         }), 200
 
 @relatorios.route('/desistencias', methods=['GET'])
-@jwt_required()
+@auth_required()
 def relatorio_desistencias():
     """
     Gera relatório de desistências com filtros opcionais
@@ -450,7 +450,7 @@ def relatorio_desistencias():
         }), 200
 
 @relatorios.route('/estatisticas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def estatisticas_processamento():
     """
     Obtém estatísticas de processamento do sistema
@@ -554,7 +554,7 @@ def estatisticas_processamento():
     }), 200
 
 @relatorios.route('/metricas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def metricas_desempenho():
     """
     Obtém métricas de desempenho do sistema

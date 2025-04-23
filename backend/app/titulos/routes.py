@@ -1,5 +1,5 @@
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from sqlalchemy import or_, and_
 from datetime import datetime
 from app import db
@@ -7,7 +7,7 @@ from app.models import Titulo, User, Credor, Devedor
 from . import titulos
 
 @titulos.route('/', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_titulos():
     """
     Lista títulos com filtros opcionais
@@ -130,7 +130,7 @@ def get_titulos():
     }), 200
 
 @titulos.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_titulo(id):
     """
     Obtém detalhes de um título específico
@@ -200,7 +200,7 @@ def get_titulo(id):
     return jsonify(titulo_dict), 200
 
 @titulos.route('/<int:id>/status', methods=['PUT'])
-@jwt_required()
+@auth_required()
 def update_titulo_status(id):
     """
     Atualiza o status de um título
@@ -272,7 +272,7 @@ def update_titulo_status(id):
     }), 200
 
 @titulos.route('/estatisticas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_estatisticas():
     """
     Obtém estatísticas dos títulos

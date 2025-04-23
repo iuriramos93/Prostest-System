@@ -1,5 +1,5 @@
 from flask import jsonify, request, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from app.utils.async_tasks import get_task_status
 from app.utils.task_utils import list_tasks, get_pending_tasks
 from app.models import Remessa, User
@@ -7,7 +7,7 @@ from app import db
 from . import remessas
 
 @remessas.route('/tasks/<task_id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_task(task_id):
     """Obtém o status de uma tarefa assíncrona
     ---
@@ -38,7 +38,7 @@ def get_task(task_id):
     }), 200
 
 @remessas.route('/by-task/<task_id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_remessa_by_task(task_id):
     """Obtém uma remessa pelo ID da tarefa
     ---
@@ -69,7 +69,7 @@ def get_remessa_by_task(task_id):
     }), 200
 
 @remessas.route('/tasks', methods=['GET'])
-@jwt_required()
+@auth_required()
 def list_all_tasks():
     """Lista todas as tarefas assíncronas
     ---
@@ -113,7 +113,7 @@ def list_all_tasks():
     }), 200
 
 @remessas.route('/tasks/pending', methods=['GET'])
-@jwt_required()
+@auth_required()
 def list_pending_tasks():
     """Lista todas as tarefas pendentes ou em execução
     ---

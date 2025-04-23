@@ -37,19 +37,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor para adicionar o token em todas as requisições
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Configuração simplificada sem interceptor de token
 
 // Provider para o contexto de autenticação
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -66,45 +54,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  // Função para verificar a sessão do usuário
+  // Função para verificar a sessão do usuário (simplificada sem JWT)
   const checkSession = async (): Promise<boolean> => {
-    const token = localStorage.getItem("token");
+    const userDataStr = localStorage.getItem("userData");
     
-    if (!token) {
+    if (!userDataStr) {
       setUser(null);
       return false;
     }
     
     try {
-      // Verificar se o token é válido fazendo uma requisição para obter os dados do usuário
-      const response = await api.get("/auth/me");
-      setUser(response.data);
+      // Recuperar os dados do usuário do localStorage
+      const userData = JSON.parse(userDataStr);
+      setUser(userData);
       return true;
     } catch (error) {
       console.error("Erro ao verificar sessão:", error);
-      // Se o token expirou ou é inválido, fazer logout
       logout();
       return false;
     }
   };
 
-  // Função de login
-  // Update the API URL to ensure it's correctly pointing to your API service
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  
-  // Then update the login function to use the correct endpoint
+  // Função de login simplificada sem JWT
   const login = async (email: string, password: string) => {
     try {
-      // Note the URL format - make sure it matches your backend route structure
+      // Usando a URL base correta
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
       
-      const { access_token, user: userData } = response.data;
+      // Extrair apenas os dados do usuário
+      const { user: userData } = response.data;
       
-      // Salvar o token e os dados do usuário
-      localStorage.setItem("token", access_token);
+      // Salvar os dados do usuário no localStorage para persistência
+      localStorage.setItem("userData", JSON.stringify(userData));
       
       // Atualizar o estado do usuário
       setUser(userData);
@@ -118,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Função de logout
   const logout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
     setUser(null);
   };
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+
 from app import db
 
 class User(db.Model):
@@ -27,14 +27,16 @@ class User(db.Model):
     
     @property
     def password(self):
-        raise AttributeError('password is not a readable attribute')
+        return self.password_hash
     
     @password.setter
     def password(self, password):
-        self.password_hash = generate_password_hash(password)
+        # Armazenando a senha em texto puro, sem criptografia
+        self.password_hash = password
     
     def verify_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        # Verificação simples, comparando diretamente as senhas
+        return self.password_hash == password
     
     def to_dict(self):
         return {

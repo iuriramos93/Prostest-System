@@ -1,13 +1,13 @@
 from datetime import datetime
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from sqlalchemy import or_, and_
 from app import db
 from app.models import Desistencia, Titulo, User
 from . import desistencias
 
 @desistencias.route('/', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_desistencias():
     """
     Lista solicitações de desistência com filtros opcionais
@@ -125,7 +125,7 @@ def get_desistencias():
     }), 200
 
 @desistencias.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_desistencia(id):
     """
     Obtém detalhes de uma solicitação de desistência específica
@@ -185,7 +185,7 @@ def get_desistencia(id):
     return jsonify(desistencia_dict), 200
 
 @desistencias.route('/', methods=['POST'])
-@jwt_required()
+@auth_required()
 def create_desistencia():
     """
     Cria uma nova solicitação de desistência
@@ -217,7 +217,8 @@ def create_desistencia():
       404:
         description: Título não encontrado
     """
-    user_id = get_jwt_identity()
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
     if not current_user:
@@ -263,7 +264,7 @@ def create_desistencia():
     }), 201
 
 @desistencias.route('/<int:id>/processar', methods=['PUT'])
-@jwt_required()
+@auth_required()
 def processar_desistencia(id):
     """
     Processa uma solicitação de desistência (aprovar ou rejeitar)
@@ -300,7 +301,8 @@ def processar_desistencia(id):
       404:
         description: Desistência não encontrada
     """
-    user_id = get_jwt_identity()
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
     if not current_user:
@@ -354,7 +356,7 @@ def processar_desistencia(id):
     }), 200
 
 @desistencias.route('/estatisticas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_estatisticas():
     """
     Obtém estatísticas das desistências

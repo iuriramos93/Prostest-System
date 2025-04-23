@@ -1,7 +1,7 @@
 import os
 import datetime
 from flask import request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import User, Titulo, AutorizacaoCancelamento, TransacaoAutorizacaoCancelamento
@@ -16,7 +16,7 @@ def allowed_file(filename):
 
 
 @autorizacoes.route('/upload', methods=['POST'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Faz upload de um arquivo de autorização de cancelamento',
@@ -207,7 +207,7 @@ def process_file(file_path, autorizacao_id):
 
 
 @autorizacoes.route('/', methods=['GET'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Lista todas as autorizações de cancelamento',
@@ -238,7 +238,7 @@ def get_autorizacoes():
 
 
 @autorizacoes.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Obtém detalhes de uma autorização de cancelamento',
@@ -281,7 +281,7 @@ def get_autorizacao(id):
 
 
 @autorizacoes.route('/<int:id>/transacoes', methods=['GET'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Lista as transações de uma autorização de cancelamento',
@@ -335,7 +335,7 @@ def get_transacoes(id):
 
 
 @autorizacoes.route('/transacoes/<int:id>/processar', methods=['POST'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Processa uma transação de autorização de cancelamento',
@@ -408,7 +408,7 @@ def processar_transacao(id):
 
 
 @autorizacoes.route('/gerar-arquivo-exemplo', methods=['GET'])
-@jwt_required()
+@auth_required()
 @swag_from({
     'tags': ['Autorizações de Cancelamento'],
     'summary': 'Gera um arquivo de exemplo de autorização de cancelamento',

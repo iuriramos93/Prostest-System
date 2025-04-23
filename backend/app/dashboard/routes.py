@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from flask import jsonify, request
-from flask_jwt_extended import jwt_required
+from app.auth.middleware import auth_required
 from sqlalchemy import func, and_, desc
 from app import db
 from app.models import Remessa, Titulo, Desistencia, Erro
@@ -43,7 +43,7 @@ def _set_cache_data(key, data):
     _cache[key] = (datetime.utcnow().timestamp(), data)
 
 @dashboard.route('/summary', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_summary_statistics():
     """Retorna estatísticas resumidas do sistema
     ---
@@ -95,7 +95,7 @@ def get_summary_statistics():
     return jsonify(response)
 
 @dashboard.route('/recent-submissions', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_recent_submissions():
     """Retorna lista de remessas recentes com paginação e filtros
     ---
@@ -203,7 +203,7 @@ def get_recent_submissions():
     return jsonify(response)
 
 @dashboard.route('/status-distribution', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_status_distribution():
     """Retorna distribuição de status dos títulos e tendência dos últimos 30 dias
     ---

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 import xmltodict
 from flask import request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth.middleware import auth_required, get_current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, and_
 from app import db
@@ -16,7 +16,7 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in {'xml'}
 
 @remessas.route('/upload', methods=['POST'])
-@jwt_required()
+@auth_required()
 def upload_remessa():
     """
     Faz upload de um arquivo de remessa
@@ -51,7 +51,8 @@ def upload_remessa():
       415:
         description: Tipo de arquivo não suportado
     """
-    user_id = get_jwt_identity()
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
     if not current_user:
@@ -369,7 +370,7 @@ def processar_remessa_desistencias(remessa, data):
     db.session.commit()
 
 @remessas.route('/', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_remessas():
     """
     Lista remessas com filtros opcionais
@@ -472,7 +473,7 @@ def get_remessas():
     }), 200
 
 @remessas.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_remessa(id):
     """
     Obtém detalhes de uma remessa específica
@@ -521,7 +522,7 @@ def get_remessa(id):
     return jsonify(remessa_dict), 200
 
 @remessas.route('/estatisticas', methods=['GET'])
-@jwt_required()
+@auth_required()
 def get_estatisticas():
     """
     Obtém estatísticas das remessas

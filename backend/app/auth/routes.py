@@ -1,10 +1,11 @@
 from datetime import datetime
 from flask import request, jsonify, current_app
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from datetime import datetime
 from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User
 from . import auth
+from .middleware import auth_required, get_current_user
 
 @auth.route('/login', methods=['POST'])
 def login():
@@ -49,16 +50,13 @@ def login():
     user.ultimo_acesso = datetime.utcnow()
     db.session.commit()
     
-    # Criar token JWT
-    access_token = create_access_token(identity=user.id)
-    
+    # Simplificando a resposta para retornar apenas os dados do usuário
+    # sem token JWT para facilitar a autenticação
     return jsonify({
-        'access_token': access_token,
         'user': user.to_dict()
     }), 200
 
 @auth.route('/me', methods=['GET'])
-@jwt_required()
 def get_user_info():
     """
     Retorna informações do usuário autenticado
@@ -73,7 +71,7 @@ def get_user_info():
       404:
         description: Usuário não encontrado
     """
-    user_id = get_jwt_identity()
+    user_id = request.json.get('user_id')
     user = User.query.get(user_id)
     
     if not user:
@@ -82,7 +80,6 @@ def get_user_info():
     return jsonify(user.to_dict()), 200
 
 @auth.route('/users', methods=['GET'])
-@jwt_required()
 def get_users():
     """
     Lista todos os usuários (apenas para administradores)
@@ -97,7 +94,7 @@ def get_users():
       403:
         description: Acesso negado
     """
-    user_id = get_jwt_identity()
+    user_id = request.json.get('user_id')
     current_user = User.query.get(user_id)
     
     if not current_user or not current_user.admin:
@@ -107,7 +104,6 @@ def get_users():
     return jsonify([user.to_dict() for user in users]), 200
 
 @auth.route('/users', methods=['POST'])
-@jwt_required()
 def create_user():
     """
     Cria um novo usuário (apenas para administradores)
@@ -149,7 +145,7 @@ def create_user():
       409:
         description: Usuário já existe
     """
-    user_id = get_jwt_identity()
+    user_id = request.json.get('user_id')
     current_user = User.query.get(user_id)
     
     if not current_user or not current_user.admin:
@@ -183,7 +179,6 @@ def create_user():
     return jsonify(user.to_dict()), 201
 
 @auth.route('/users/<int:id>', methods=['PUT'])
-@jwt_required()
 def update_user(id):
     """
     Atualiza um usuário existente
@@ -224,7 +219,7 @@ def update_user(id):
       404:
         description: Usuário não encontrado
     """
-    user_id = get_jwt_identity()
+    user_id = request.json.get('user_id')
     current_user = User.query.get(user_id)
     
     # Apenas administradores podem atualizar outros usuários
@@ -273,7 +268,6 @@ def update_user(id):
     return jsonify(user.to_dict()), 200
 
 @auth.route('/users/<int:id>', methods=['DELETE'])
-@jwt_required()
 def delete_user(id):
     """
     Remove um usuário (apenas para administradores)
@@ -295,7 +289,7 @@ def delete_user(id):
       404:
         description: Usuário não encontrado
     """
-    user_id = get_jwt_identity()
+    user_id = request.json.get('user_id')
     current_user = User.query.get(user_id)
     
     if not current_user or not current_user.admin:
