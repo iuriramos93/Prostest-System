@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Serviço do banco de dados PostgreSQL
+  db:
+    image: postgres:latest
+    container_name: protestsystem-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: protestsystem
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - protestsystem-network
+
+  # Serviço da API Flask
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: protestsystem-api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/protestsystem
+      SECRET_KEY: sua_chave_secreta_aqui
+      SESSION_COOKIE_SECURE: "True"
+      SESSION_COOKIE_HTTPONLY: "True"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - protestsystem-network
+
+  # Serviço do frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: protestsystem-frontend
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - protestsystem-network
+
+  # Serviço do PGAdmin (opcional)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: protestsystem-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@protestsystem.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - db
+    networks:
+      - protestsystem-network
+
+volumes:
+  pgdata:
+    # Volume nomeado para persistência dos dados do PostgreSQL
+  pgadmin-data:
+    # Volume nomeado para persistência dos dados do PGAdmin
+
+networks:
+  protestsystem-network:
+    driver: bridge

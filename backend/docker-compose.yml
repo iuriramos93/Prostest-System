@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "5000:5000"
+    working_dir: /app
     volumes:
       - ./:/app
     environment:
@@ -19,11 +20,12 @@ services:
       - MAIL_DEFAULT_SENDER=noreply@example.com
       - MAIL_USE_TLS=True
       - APP_SETTINGS=config.DevelopmentConfig
+      - PYTHONPATH=/app
     depends_on:
       - db
     networks:
       - protest-network
-    command: ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:app"]
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:application"]
 
   db:
     image: postgres:15

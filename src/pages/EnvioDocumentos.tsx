@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { remessaService, desistenciaService } from "@/services/api";
 
 export function EnvioDocumentos() {
   const [tipo, setTipo] = useState<string>("remessa");
@@ -31,8 +32,19 @@ export function EnvioDocumentos() {
     setIsLoading(true);
     
     try {
-      // Simulação de envio para API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Preparar FormData para envio
+      const formData = new FormData();
+      formData.append('arquivo', arquivo);
+      formData.append('tipo', tipo);
+      formData.append('uf', uf);
+      formData.append('descricao', descricao || '');
+      
+      // Enviar para o serviço apropriado
+      if (tipo === 'remessa') {
+        await remessaService.enviarRemessa(formData);
+      } else if (tipo === 'desistencia') {
+        await desistenciaService.enviarDesistencia(formData);
+      }
       
       toast({
         title: "Documento enviado com sucesso",
@@ -44,10 +56,10 @@ export function EnvioDocumentos() {
       setUf("");
       setArquivo(null);
       setDescricao("");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro ao enviar documento",
-        description: "Ocorreu um erro ao enviar o documento. Tente novamente.",
+        description: error.response?.data?.message || "Ocorreu um erro ao enviar o documento. Tente novamente.",
         variant: "destructive",
       });
     } finally {

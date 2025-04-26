@@ -63,7 +63,8 @@ CREATE TABLE remessas (
     tipo VARCHAR(20) NOT NULL,
     quantidade_titulos INTEGER DEFAULT 0,
     usuario_id INTEGER REFERENCES users(id),
-    data_processamento TIMESTAMP
+    data_processamento TIMESTAMP,
+    descricao TEXT
 );
 
 -- Índices para a tabela remessas

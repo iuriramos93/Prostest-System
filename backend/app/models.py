@@ -27,16 +27,22 @@ class User(db.Model):
     
     @property
     def password(self):
-        return self.password_hash
+        raise AttributeError('password não é um atributo legível')
     
     @password.setter
     def password(self, password):
-        # Armazenando a senha em texto puro, sem criptografia
-        self.password_hash = password
+        # Usando bcrypt para gerar hash seguro da senha
+        from flask_bcrypt import Bcrypt
+        from flask import current_app
+        bcrypt = Bcrypt(current_app)
+        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
     
     def verify_password(self, password):
-        # Verificação simples, comparando diretamente as senhas
-        return self.password_hash == password
+        # Verificação usando bcrypt para comparar a senha com o hash armazenado
+        from flask_bcrypt import Bcrypt
+        from flask import current_app
+        bcrypt = Bcrypt(current_app)
+        return bcrypt.check_password_hash(self.password_hash, password)
     
     def to_dict(self):
         return {

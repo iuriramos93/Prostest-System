@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { desistenciaService } from "@/services/api";
 import axios from "axios";
 
 // Interface para a desistência
@@ -41,36 +42,42 @@ export function Desistencias() {
   const [selectedDesistencia, setSelectedDesistencia] = useState<Desistencia | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [modoOffline, setModoOffline] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const api = axios.create({
-    baseURL: "/api",
-    headers: {
-      "Authorization": `Bearer ${localStorage.getItem("token")}`
-    }
-  });
-
   // Carregar desistências
   const carregarDesistencias = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get("/desistencias", {
-        params: {
-          ...filtros,
-          page,
-          per_page: 10
-        }
+      const response = await desistenciaService.listarDesistencias({
+        ...filtros,
+        page,
+        per_page: 10
       });
-      setDesistencias(response.data.items);
-      setTotalPages(Math.ceil(response.data.total / 10));
-    } catch (error) {
-      toast({
-        title: "Erro ao carregar desistências",
-        description: "Ocorreu um erro ao carregar as desistências. Tente novamente.",
-        variant: "destructive",
-      });
+      setDesistencias(response.items || []);
+      setTotalPages(Math.ceil(response.total / 10));
+      setModoOffline(false); // Conexão bem-sucedida, não estamos em modo offline
+    } catch (error: any) {
+      console.error("Erro ao carregar desistências:", error);
+      
+      // Verificar se é um erro de conexão
+      if (error.code === 'ERR_NETWORK') {
+        // O serviço já retorna dados simulados, então não precisamos definir desistencias aqui
+        // Apenas definir que estamos em modo offline
+        setModoOffline(true);
+        // Não mostrar toast de erro para não confundir o usuário
+      } else {
+        // Para outros tipos de erro, mostrar mensagem e limpar dados
+        setDesistencias([]);
+        setTotalPages(1);
+        toast({
+          title: "Erro ao carregar desistências",
+          description: "Ocorreu um erro ao carregar as desistências. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -83,14 +90,53 @@ export function Desistencias() {
   // Criar nova desistência
   const criarDesistencia = async (dados: Partial<Desistencia>) => {
     try {
-      await api.post("/desistencias", dados);
+      const formData = new FormData();
+      Object.entries(dados).forEach(([key, value]) => {
+        if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+      
+      await desistenciaService.enviarDesistencia(formData);
       toast({
         title: "Desistência criada",
         description: "A solicitação de desistência foi criada com sucesso."
       });
       carregarDesistencias();
       setModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Erro ao criar desistência:", error);
+      
+      // Se o servidor não estiver disponível, simular criação bem-sucedida
+      if (error.code === 'ERR_NETWORK') {
+        console.log('Servidor indisponível, simulando criação de desistência');
+        
+        // Criar uma nova desistência com ID temporário
+        const novaDesistencia: Desistencia = {
+          id: `temp-${Date.now()}`, // ID temporário
+          numeroTitulo: dados.numeroTitulo || '',
+          protocolo: dados.protocolo || '',
+          devedor: dados.devedor || '',
+          valor: dados.valor || 0,
+          dataProtocolo: new Date().toISOString().split('T')[0],
+          dataSolicitacao: new Date().toISOString(),
+          motivo: dados.motivo || '',
+          observacoes: dados.observacoes,
+          status: 'PENDENTE'
+        };
+        
+        // Adicionar à lista de desistências
+        setDesistencias([novaDesistencia, ...desistencias]);
+        
+        toast({
+          title: "Desistência criada (modo offline)",
+          description: "A solicitação foi criada localmente. Sincronize quando o servidor estiver disponível."
+        });
+        
+        setModalOpen(false);
+        return;
+      }
+      
       toast({
         title: "Erro ao criar desistência",
         description: "Ocorreu um erro ao criar a desistência. Tente novamente.",
@@ -102,14 +148,51 @@ export function Desistencias() {
   // Atualizar desistência
   const atualizarDesistencia = async (id: string, dados: Partial<Desistencia>) => {
     try {
-      await api.put(`/desistencias/${id}`, dados);
+      // Como não temos um método específico para atualizar no serviço, usamos axios diretamente
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem("token");
+      
+      await axios.put(`${API_URL}/desistencias/${id}`, dados, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
       toast({
         title: "Desistência atualizada",
         description: "A solicitação de desistência foi atualizada com sucesso."
       });
       carregarDesistencias();
       setModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Erro ao atualizar desistência:", error);
+      
+      // Se o servidor não estiver disponível, simular atualização bem-sucedida
+      if (error.code === 'ERR_NETWORK') {
+        console.log('Servidor indisponível, simulando atualização');
+        
+        // Atualizar localmente a desistência selecionada
+        if (selectedDesistencia) {
+          const desistenciaAtualizada = {
+            ...selectedDesistencia,
+            ...dados
+          };
+          
+          // Atualizar a lista de desistências
+          setDesistencias(desistencias.map(item => 
+            item.id === id ? desistenciaAtualizada : item
+          ));
+          
+          toast({
+            title: "Desistência atualizada (modo offline)",
+            description: "A solicitação foi atualizada localmente. Sincronize quando o servidor estiver disponível."
+          });
+          
+          setModalOpen(false);
+          return;
+        }
+      }
+      
       toast({
         title: "Erro ao atualizar desistência",
         description: "Ocorreu um erro ao atualizar a desistência. Tente novamente.",
@@ -134,7 +217,15 @@ export function Desistencias() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Desistências de Protesto</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Desistências de Protesto</h1>
+          {modoOffline && (
+            <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-md text-sm flex items-center">
+              <span className="mr-1 h-2 w-2 rounded-full bg-yellow-500 inline-block"></span>
+              Modo Offline - Dados simulados
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground">Gerencie as solicitações de desistência de protesto.</p>
       </div>
 

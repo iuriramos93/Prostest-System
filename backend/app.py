@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -25,7 +25,9 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+    
+    # Configuração do CORS para permitir requisições do frontend
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     
     # Configurar Swagger para documentação da API
     swagger_config = {
@@ -74,6 +76,27 @@ def create_app(config_name=None):
     @app.route('/api/health')
     def health_check():
         return {"status": "ok", "message": "API is running"}
+    
+    # Rota para listar todas as rotas definidas
+    @app.route('/api/routes')
+    def list_routes():
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'path': str(rule)
+            })
+        return jsonify({'routes': routes})
+    
+    # Rota para verificar o status da conexão com o banco de dados
+    @app.route('/api/database/status')
+    def db_status():
+        try:
+            db.session.execute('SELECT 1')
+            return jsonify({'status': 'connected'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
     
     return app
 

@@ -6,6 +6,7 @@ interface FiltrosRelatorio {
   uf?: string;
   status?: string;
   formato: 'pdf' | 'excel' | 'csv';
+  tipo: 'titulos' | 'remessas' | 'desistencias' | 'erros' | 'financeiro';
 }
 
 interface RespostaRelatorio {
@@ -20,7 +21,7 @@ interface RespostaRelatorio {
   url_download?: string;
 }
 
-const API_URL = '/api/relatorios';
+const API_URL = import.meta.env.VITE_API_URL + '/api/relatorios' || 'http://localhost:5000/api/relatorios';
 
 export const RelatoriosService = {
   async gerarRelatorio(
@@ -32,7 +33,8 @@ export const RelatoriosService = {
       data_fim: filtros.dataFim || '',
       uf: filtros.uf || '',
       status: filtros.status || '',
-      formato: filtros.formato
+      formato: filtros.formato,
+      tipo: filtros.tipo
     });
 
     const response = await axios.get(`${API_URL}/${tipo}?${params}`, {

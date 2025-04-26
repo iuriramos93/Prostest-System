@@ -1,14 +1,28 @@
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
 
+# Carregar variáveis de ambiente do arquivo .env
 basedir = os.path.abspath(os.path.dirname(__file__))
+env_path = os.path.join(basedir, '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
 
 class Config:
     """Configuração base"""
+    # Configurações de segurança
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-string'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', 86400)))
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(seconds=int(os.environ.get('JWT_REFRESH_TOKEN_EXPIRES', 604800)))
+    JWT_COOKIE_SECURE = os.environ.get('JWT_COOKIE_SECURE', 'false').lower() in ['true', 'on', '1']
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_COOKIE_SAMESITE = 'Lax'
+    
+    # Configurações de banco de dados
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Configurações de upload
     UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     
@@ -32,8 +46,9 @@ class Config:
 class DevelopmentConfig(Config):
     """Configuração de desenvolvimento"""
     DEBUG = True
+    # Configuração para usar o banco de dados no Docker
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protest_system'
+        'postgresql://postgres:postgres@db:5432/protestsystem'
 
 
 class TestingConfig(Config):

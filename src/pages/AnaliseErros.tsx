@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -7,65 +7,117 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, FileText, CheckCircle, Search, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileText, CheckCircle, Search, AlertTriangle, Calendar } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrosService } from "@/services/erros";
+import { Pagination } from "@/components/ui/pagination";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // Interface para os erros
 interface Erro {
   id: string;
   codigo: string;
-  descricao: string;
-  data: string;
+  mensagem: string;
+  dataOcorrencia: string;
+  dataResolucao?: string;
   status: "Pendente" | "Resolvido";
-  documento: string;
   solucao?: string;
+  modulo: string;
+  criticidade: "Baixa" | "Media" | "Alta";
+  remessa?: {
+    id: string;
+    nome_arquivo: string;
+    data_envio: string;
+    status: string;
+  };
+  titulo?: {
+    id: string;
+    numero: string;
+    protocolo: string;
+    valor: number;
+    status: string;
+  };
+  usuario_resolucao?: {
+    id: string;
+    nome_completo: string;
+  };
+}
+
+interface ErrosResponse {
+  items: Erro[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
 }
 
 export function AnaliseErros() {
-  const [erros, setErros] = useState<Erro[]>([
-    {
-      id: "1",
-      codigo: "ERR-001",
-      descricao: "Documento inválido",
-      data: "2023-10-10",
-      status: "Pendente",
-      documento: "remessa_20231010.xml"
-    },
-    {
-      id: "2",
-      codigo: "ERR-002",
-      descricao: "Assinatura digital ausente",
-      data: "2023-10-11",
-      status: "Pendente",
-      documento: "remessa_20231011.xml"
-    },
-    {
-      id: "3",
-      codigo: "ERR-003",
-      descricao: "Formato de data incorreto",
-      data: "2023-10-12",
-      status: "Resolvido",
-      documento: "remessa_20231012.xml",
-      solucao: "Corrigido o formato da data para DD/MM/AAAA"
-    }
-  ]);
-
-  const [filtro, setFiltro] = useState("");
-  const [status, setStatus] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [erros, setErros] = useState<Erro[]>([]);
+  const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedErro, setSelectedErro] = useState<Erro | null>(null);
   const [solucao, setSolucao] = useState("");
   const { toast } = useToast();
+  
+  // Filtros
+  const [codigo, setCodigo] = useState("");
+  const [status, setStatus] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [activeTab, setActiveTab] = useState("pendentes");
+  
+  // Paginação
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Carregar erros
+  const carregarErros = async () => {
+    setLoading(true);
+    try {
+      // Determinar o status baseado na tab ativa
+      let statusFiltro = status;
+      if (activeTab === "pendentes") {
+        statusFiltro = "Pendente";
+      } else if (activeTab === "resolvidos") {
+        statusFiltro = "Resolvido";
+      }
+      
+      const response = await ErrosService.listarErros({
+        codigo,
+        status: statusFiltro,
+        dataInicio,
+        dataFim,
+        page,
+        per_page: perPage
+      });
+      
+      setErros(response.items);
+      setTotal(response.total);
+      setTotalPages(response.pages);
+    } catch (error) {
+      console.error("Erro ao carregar erros:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os erros. Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar erros quando os filtros ou a página mudar
+  useEffect(() => {
+    carregarErros();
+  }, [page, activeTab]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulando busca
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    setPage(1); // Resetar para a primeira página ao buscar
+    carregarErros();
   };
 
   const handleResolverErro = (erro: Erro) => {
@@ -74,7 +126,7 @@ export function AnaliseErros() {
     setOpenDialog(true);
   };
 
-  const handleSalvarSolucao = () => {
+  const handleSalvarSolucao = async () => {
     if (!selectedErro || !solucao) {
       toast({
         title: "Erro",
@@ -84,38 +136,57 @@ export function AnaliseErros() {
       return;
     }
 
-    // Atualiza o erro com a solução
-    const updatedErros = erros.map(erro => {
-      if (erro.id === selectedErro.id) {
-        return {
-          ...erro,
-          status: "Resolvido" as const,
-          solucao: solucao
-        };
-      }
-      return erro;
-    });
-
-    setErros(updatedErros);
-    setOpenDialog(false);
-    
-    toast({
-      title: "Sucesso",
-      description: `O erro ${selectedErro.codigo} foi marcado como resolvido.`,
-    });
+    setLoading(true);
+    try {
+      await ErrosService.resolverErro(selectedErro.id, solucao);
+      
+      // Atualizar a lista de erros
+      carregarErros();
+      setOpenDialog(false);
+      
+      toast({
+        title: "Sucesso",
+        description: `O erro ${selectedErro.codigo} foi marcado como resolvido.`,
+      });
+    } catch (error) {
+      console.error("Erro ao resolver erro:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível resolver o erro. Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredErros = erros.filter(erro => {
-    if (status && erro.status !== status) return false;
-    if (filtro && !erro.codigo.includes(filtro) && !erro.descricao.toLowerCase().includes(filtro.toLowerCase())) return false;
-    return true;
-  });
+  const formatarData = (dataString: string) => {
+    try {
+      const data = new Date(dataString);
+      return format(data, "dd/MM/yyyy HH:mm", { locale: ptBR });
+    } catch (error) {
+      return "Data inválida";
+    }
+  };
+
+  const getCriticidadeColor = (criticidade: string) => {
+    switch (criticidade) {
+      case "Alta":
+        return "text-red-500";
+      case "Media":
+        return "text-yellow-500";
+      case "Baixa":
+        return "text-green-500";
+      default:
+        return "";
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Análise de Erros</h1>
-        <p className="text-muted-foreground">Revise e resolva os erros encontrados.</p>
+        <p className="text-muted-foreground">Revise e resolva os erros encontrados no sistema.</p>
       </div>
       
       <Card>
@@ -124,25 +195,51 @@ export function AnaliseErros() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input 
-                placeholder="Código ou descrição do erro" 
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
+                placeholder="Código do erro" 
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
               />
+              
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="">Todos</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Resolvido">Resolvido</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <div className="flex flex-col space-y-1">
+                <label className="text-sm font-medium">Data Inicial</label>
+                <div className="relative">
+                  <Input 
+                    type="date" 
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                  />
+                  <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              
+              <div className="flex flex-col space-y-1">
+                <label className="text-sm font-medium">Data Final</label>
+                <div className="relative">
+                  <Input 
+                    type="date" 
+                    value={dataFim}
+                    onChange={(e) => setDataFim(e.target.value)}
+                  />
+                  <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
             </div>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Buscando..." : "Buscar"}
+            <Button type="submit" disabled={loading}>
+              {loading ? "Buscando..." : "Buscar"}
+              <Search className="ml-2 h-4 w-4" />
             </Button>
           </form>
         </CardContent>
@@ -153,142 +250,94 @@ export function AnaliseErros() {
           <CardTitle>Resultados</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="pendentes">
+          <Tabs defaultValue="pendentes" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
               <TabsTrigger value="resolvidos">Resolvidos</TabsTrigger>
               <TabsTrigger value="todos">Todos</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="pendentes">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredErros.filter(erro => erro.status === "Pendente").map((erro) => (
-                    <TableRow key={erro.id}>
-                      <TableCell className="font-medium">{erro.codigo}</TableCell>
-                      <TableCell>{erro.descricao}</TableCell>
-                      <TableCell>{new Date(erro.data).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{erro.documento}</TableCell>
-                      <TableCell>
+            <TabsContent value={activeTab}>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <p>Carregando...</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Mensagem</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Módulo</TableHead>
+                        <TableHead>Criticidade</TableHead>
+                        <TableHead>Ação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {erros.length > 0 ? (
+                        erros.map((erro) => (
+                          <TableRow key={erro.id}>
+                            <TableCell className="font-medium">{erro.codigo}</TableCell>
+                            <TableCell>{erro.mensagem}</TableCell>
+                            <TableCell>{formatarData(erro.dataOcorrencia)}</TableCell>
+                            <TableCell>{erro.modulo}</TableCell>
+                            <TableCell className={getCriticidadeColor(erro.criticidade)}>
+                              {erro.criticidade}
+                            </TableCell>
+                            <TableCell>
+                              {erro.status === "Pendente" ? (
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => handleResolverErro(erro)}
+                                >
+                                  Resolver
+                                </Button>
+                              ) : (
+                                <div className="flex items-center text-green-500">
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Resolvido
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-4">
+                            Nenhum erro encontrado.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                  
+                  {totalPages > 1 && (
+                    <div className="flex justify-center mt-4">
+                      <Pagination>
                         <Button 
                           variant="outline" 
-                          onClick={() => handleResolverErro(erro)}
+                          onClick={() => setPage(page > 1 ? page - 1 : 1)}
+                          disabled={page === 1}
                         >
-                          Resolver
+                          Anterior
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredErros.filter(erro => erro.status === "Pendente").length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4">
-                        Nenhum erro pendente encontrado.
-                      </TableCell>
-                    </TableRow>
+                        <div className="mx-4 flex items-center">
+                          Página {page} de {totalPages}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setPage(page < totalPages ? page + 1 : totalPages)}
+                          disabled={page === totalPages}
+                        >
+                          Próxima
+                        </Button>
+                      </Pagination>
+                    </div>
                   )}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="resolvidos">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Solução</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredErros.filter(erro => erro.status === "Resolvido").map((erro) => (
-                    <TableRow key={erro.id}>
-                      <TableCell className="font-medium">{erro.codigo}</TableCell>
-                      <TableCell>{erro.descricao}</TableCell>
-                      <TableCell>{new Date(erro.data).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{erro.documento}</TableCell>
-                      <TableCell>{erro.solucao}</TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredErros.filter(erro => erro.status === "Resolvido").length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4">
-                        Nenhum erro resolvido encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="todos">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredErros.map((erro) => (
-                    <TableRow key={erro.id}>
-                      <TableCell className="font-medium">{erro.codigo}</TableCell>
-                      <TableCell>{erro.descricao}</TableCell>
-                      <TableCell>{new Date(erro.data).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>
-                        <span className={erro.status === "Resolvido" ? "text-green-500" : "text-yellow-500"}>
-                          {erro.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>{erro.documento}</TableCell>
-                      <TableCell>
-                        {erro.status === "Pendente" ? (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleResolverErro(erro)}
-                          >
-                            Resolver
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-muted-foreground"
-                            onClick={() => {
-                              setSelectedErro(erro);
-                              setSolucao(erro.solucao || "");
-                              setOpenDialog(true);
-                            }}
-                          >
-                            Ver solução
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredErros.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4">
-                        Nenhum erro encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -296,15 +345,11 @@ export function AnaliseErros() {
       
       {/* Modal para resolver erro */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {selectedErro?.status === "Resolvido" ? "Solução do Erro" : "Resolver Erro"}
-            </DialogTitle>
+            <DialogTitle>Resolver Erro</DialogTitle>
             <DialogDescription>
-              {selectedErro?.status === "Resolvido" 
-                ? "Detalhes da solução aplicada." 
-                : "Informe a solução aplicada para resolver o erro."}
+              Informe a solução aplicada para resolver este erro.
             </DialogDescription>
           </DialogHeader>
           
@@ -312,53 +357,52 @@ export function AnaliseErros() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Código</p>
-                  <p className="font-medium">{selectedErro.codigo}</p>
+                  <p className="text-sm font-medium">Código:</p>
+                  <p>{selectedErro.codigo}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Data</p>
-                  <p className="font-medium">{new Date(selectedErro.data).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-sm font-medium">Data:</p>
+                  <p>{formatarData(selectedErro.dataOcorrencia)}</p>
                 </div>
               </div>
               
               <div>
-                <p className="text-sm text-muted-foreground">Descrição</p>
-                <p className="font-medium">{selectedErro.descricao}</p>
+                <p className="text-sm font-medium">Mensagem:</p>
+                <p>{selectedErro.mensagem}</p>
               </div>
               
-              <div>
-                <p className="text-sm text-muted-foreground">Documento</p>
-                <p className="font-medium">{selectedErro.documento}</p>
-              </div>
-              
-              {selectedErro.status === "Resolvido" ? (
+              {selectedErro.remessa && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Solução</p>
-                  <p className="font-medium">{selectedErro.solucao}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label htmlFor="solucao" className="text-sm text-muted-foreground">
-                    Solução
-                  </label>
-                  <Input
-                    id="solucao"
-                    value={solucao}
-                    onChange={(e) => setSolucao(e.target.value)}
-                    placeholder="Descreva a solução aplicada"
-                  />
+                  <p className="text-sm font-medium">Remessa:</p>
+                  <p>{selectedErro.remessa.nome_arquivo}</p>
                 </div>
               )}
               
-              <div className="flex justify-end space-x-2">
-                {selectedErro.status !== "Resolvido" && (
-                  <Button onClick={handleSalvarSolucao}>
-                    Marcar como resolvido
-                  </Button>
-                )}
+              {selectedErro.titulo && (
+                <div>
+                  <p className="text-sm font-medium">Título:</p>
+                  <p>Número: {selectedErro.titulo.numero}, Protocolo: {selectedErro.titulo.protocolo}</p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-sm font-medium">Solução:</p>
+                <Textarea 
+                  placeholder="Descreva a solução aplicada..."
+                  value={solucao}
+                  onChange={(e) => setSolucao(e.target.value)}
+                  rows={4}
+                />
               </div>
             </div>
           )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSalvarSolucao} disabled={loading}>
+              {loading ? "Salvando..." : "Salvar Solução"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

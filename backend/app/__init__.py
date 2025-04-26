@@ -3,12 +3,15 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flasgger import Swagger
+from flask_compress import Compress
+from flask_caching import Cache
 from config import config
 
 db = SQLAlchemy()
+compress = Compress()
+cache = Cache()
 
 def create_app(config_name='development'):
-    global app
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
@@ -18,6 +21,22 @@ def create_app(config_name='development'):
     CORS(app)
     Migrate(app, db)
     Swagger(app)
+    
+    # Inicializar ferramentas de performance
+    compress.init_app(app)
+    
+    # Configurar cache
+    cache_config = {
+        'CACHE_TYPE': 'SimpleCache',  # Em produção, use 'RedisCache'
+        'CACHE_DEFAULT_TIMEOUT': 300,
+        'CACHE_THRESHOLD': 1000  # Máximo de itens no cache
+    }
+    app.config.from_mapping(cache_config)
+    cache.init_app(app)
+    
+    # Inicializar ferramentas de performance personalizadas
+    from app.utils.performance import init_performance_tools
+    init_performance_tools(app)
     
     # Inicializar sistema de tarefas assíncronas
     from app.utils.async_tasks import init_async_tasks
@@ -45,7 +64,10 @@ def create_app(config_name='development'):
     from app.autorizacoes_cancelamento import autorizacoes as autorizacoes_blueprint
     app.register_blueprint(autorizacoes_blueprint, url_prefix='/api/autorizacoes')
 
+    from app.protestos import protestos as protestos_blueprint
+    app.register_blueprint(protestos_blueprint, url_prefix='/api/protestos')
+
     return app
 
-# Criar a instância da aplicação
-app = create_app()
+# Factory pattern implementation
+# A instância é criada pelo wsgi.py

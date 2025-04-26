@@ -3,7 +3,7 @@ from flask import request, jsonify
 from app.auth.middleware import auth_required, get_current_user
 from sqlalchemy import or_, and_
 from app import db
-from app.models import Desistencia, Titulo, User
+from app.models import Desistencia, Titulo, User, Devedor
 from . import desistencias
 
 @desistencias.route('/', methods=['GET'])
@@ -17,26 +17,31 @@ def get_desistencias():
     security:
       - JWT: []
     parameters:
-      - name: status
+      - name: numeroTitulo
         in: query
         type: string
         required: false
-        description: Status da desistência (Aprovada, Pendente, Rejeitada)
-      - name: titulo_id
+        description: Número do título
+      - name: protocolo
         in: query
-        type: integer
+        type: string
         required: false
-        description: ID do título
-      - name: data_inicio
+        description: Protocolo do título
+      - name: dataInicial
         in: query
         type: string
         required: false
         description: Data inicial (formato YYYY-MM-DD)
-      - name: data_fim
+      - name: dataFinal
         in: query
         type: string
         required: false
         description: Data final (formato YYYY-MM-DD)
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: Status da desistência (PENDENTE, APROVADA, REJEITADA)
       - name: page
         in: query
         type: integer
@@ -53,29 +58,39 @@ def get_desistencias():
     """
     # Parâmetros de paginação
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
     
     # Construir query base
-    query = Desistencia.query
+    query = Desistencia.query.join(Titulo)
     
     # Aplicar filtros
     if request.args.get('status'):
-        query = query.filter(Desistencia.status == request.args.get('status'))
+        status_map = {
+            'PENDENTE': 'Pendente',
+            'APROVADA': 'Aprovada',
+            'REJEITADA': 'Rejeitada'
+        }
+        status = status_map.get(request.args.get('status'))
+        if status:
+            query = query.filter(Desistencia.status == status)
     
-    if request.args.get('titulo_id'):
-        query = query.filter(Desistencia.titulo_id == request.args.get('titulo_id'))
+    if request.args.get('numeroTitulo'):
+        query = query.filter(Titulo.numero.like(f'%{request.args.get("numeroTitulo")}%'))
+    
+    if request.args.get('protocolo'):
+        query = query.filter(Titulo.protocolo.like(f'%{request.args.get("protocolo")}%'))
     
     # Filtro por data
-    if request.args.get('data_inicio'):
+    if request.args.get('dataInicial'):
         try:
-            data_inicio = datetime.strptime(request.args.get('data_inicio'), '%Y-%m-%d')
+            data_inicio = datetime.strptime(request.args.get('dataInicial'), '%Y-%m-%d')
             query = query.filter(Desistencia.data_solicitacao >= data_inicio)
         except ValueError:
             return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
     
-    if request.args.get('data_fim'):
+    if request.args.get('dataFinal'):
         try:
-            data_fim = datetime.strptime(request.args.get('data_fim'), '%Y-%m-%d')
+            data_fim = datetime.strptime(request.args.get('dataFinal'), '%Y-%m-%d')
             # Adicionar 1 dia para incluir todo o dia final
             query = query.filter(Desistencia.data_solicitacao <= data_fim)
         except ValueError:
@@ -87,25 +102,26 @@ def get_desistencias():
     # Formatar resposta
     items = []
     for desistencia in paginated_desistencias.items:
-        item = desistencia.to_dict()
+        item = {
+            'id': str(desistencia.id),
+            'numeroTitulo': desistencia.titulo.numero if desistencia.titulo else '',
+            'protocolo': desistencia.titulo.protocolo if desistencia.titulo else '',
+            'devedor': desistencia.titulo.devedor.nome if desistencia.titulo and desistencia.titulo.devedor else '',
+            'valor': float(desistencia.titulo.valor) if desistencia.titulo and desistencia.titulo.valor else 0,
+            'dataProtocolo': desistencia.titulo.data_protesto.isoformat() if desistencia.titulo and desistencia.titulo.data_protesto else None,
+            'dataSolicitacao': desistencia.data_solicitacao.isoformat() if desistencia.data_solicitacao else None,
+            'motivo': desistencia.motivo,
+            'observacoes': desistencia.observacoes,
+            'status': desistencia.status.upper() if desistencia.status else 'PENDENTE'
+        }
         
-        # Adicionar dados do título
-        if desistencia.titulo:
-            item['titulo'] = {
-                'id': desistencia.titulo.id,
-                'numero': desistencia.titulo.numero,
-                'protocolo': desistencia.titulo.protocolo,
-                'valor': float(desistencia.titulo.valor) if desistencia.titulo.valor else None,
-                'status': desistencia.titulo.status
+        # Adicionar dados do devedor
+        if desistencia.titulo.devedor:
+            item['devedor'] = {
+                'id': desistencia.titulo.devedor.id,
+                'nome': desistencia.titulo.devedor.nome,
+                'documento': desistencia.titulo.devedor.documento
             }
-            
-            # Adicionar dados do devedor
-            if desistencia.titulo.devedor:
-                item['devedor'] = {
-                    'id': desistencia.titulo.devedor.id,
-                    'nome': desistencia.titulo.devedor.nome,
-                    'documento': desistencia.titulo.devedor.documento
-                }
         
         # Adicionar dados do usuário solicitante
         if desistencia.usuario:
@@ -200,11 +216,20 @@ def create_desistencia():
         schema:
           type: object
           required:
-            - titulo_id
+            - numeroTitulo
+            - protocolo
+            - devedor
+            - valor
             - motivo
           properties:
-            titulo_id:
-              type: integer
+            numeroTitulo:
+              type: string
+            protocolo:
+              type: string
+            devedor:
+              type: string
+            valor:
+              type: number
             motivo:
               type: string
             observacoes:
@@ -226,13 +251,30 @@ def create_desistencia():
     
     data = request.get_json()
     
-    if not data or not all(k in data for k in ('titulo_id', 'motivo')):
+    if not data or not all(k in data for k in ('numeroTitulo', 'protocolo', 'devedor', 'valor', 'motivo')):
         return jsonify({'message': 'Dados incompletos'}), 400
     
-    # Verificar se o título existe
-    titulo = Titulo.query.get(data['titulo_id'])
+    # Verificar se o título existe pelo número e protocolo
+    titulo = Titulo.query.filter_by(numero=data['numeroTitulo'], protocolo=data['protocolo']).first()
+    
     if not titulo:
-        return jsonify({'message': 'Título não encontrado'}), 404
+        # Se não encontrar, criar um novo título
+        devedor = Devedor.query.filter_by(nome=data['devedor']).first()
+        
+        if not devedor:
+            devedor = Devedor(nome=data['devedor'])
+            db.session.add(devedor)
+            db.session.flush()
+        
+        titulo = Titulo(
+            numero=data['numeroTitulo'],
+            protocolo=data['protocolo'],
+            valor=data['valor'],
+            devedor_id=devedor.id,
+            status='Protestado'
+        )
+        db.session.add(titulo)
+        db.session.flush()
     
     # Verificar se já existe uma desistência pendente para este título
     desistencia_existente = Desistencia.query.filter_by(
@@ -243,7 +285,7 @@ def create_desistencia():
     if desistencia_existente:
         return jsonify({
             'message': 'Já existe uma solicitação de desistência pendente para este título',
-            'desistencia_id': desistencia_existente.id
+            'id': str(desistencia_existente.id)
         }), 409
     
     # Criar nova desistência
@@ -252,7 +294,8 @@ def create_desistencia():
         motivo=data['motivo'],
         observacoes=data.get('observacoes'),
         status='Pendente',
-        usuario_id=current_user.id
+        usuario_id=current_user.id,
+        data_solicitacao=datetime.utcnow()
     )
     
     db.session.add(desistencia)
@@ -260,8 +303,116 @@ def create_desistencia():
     
     return jsonify({
         'message': 'Solicitação de desistência criada com sucesso',
-        'desistencia': desistencia.to_dict()
+        'id': str(desistencia.id),
+        'numeroTitulo': titulo.numero,
+        'protocolo': titulo.protocolo,
+        'devedor': data['devedor'],
+        'valor': float(titulo.valor) if titulo.valor else float(data['valor']),
+        'dataSolicitacao': desistencia.data_solicitacao.isoformat(),
+        'motivo': desistencia.motivo,
+        'observacoes': desistencia.observacoes,
+        'status': 'PENDENTE'
     }), 201
+
+@desistencias.route('/<int:id>', methods=['PUT'])
+@auth_required()
+def update_desistencia(id):
+    """
+    Atualiza uma solicitação de desistência existente
+    ---
+    tags:
+      - Desistências
+    security:
+      - JWT: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID da desistência
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            numeroTitulo:
+              type: string
+            protocolo:
+              type: string
+            devedor:
+              type: string
+            valor:
+              type: number
+            motivo:
+              type: string
+            observacoes:
+              type: string
+    responses:
+      200:
+        description: Desistência atualizada
+      400:
+        description: Dados inválidos
+      404:
+        description: Desistência não encontrada
+    """
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
+    current_user = User.query.get(user_id)
+    
+    if not current_user:
+        return jsonify({'message': 'Usuário não encontrado'}), 404
+    
+    desistencia = Desistencia.query.get(id)
+    
+    if not desistencia:
+        return jsonify({'message': 'Desistência não encontrada'}), 404
+    
+    # Verificar se a desistência já foi processada
+    if desistencia.status != 'Pendente':
+        return jsonify({'message': f'Esta desistência já foi {desistencia.status.lower()} e não pode ser editada'}), 400
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'message': 'Dados não fornecidos'}), 400
+    
+    # Atualizar campos da desistência
+    if 'motivo' in data:
+        desistencia.motivo = data['motivo']
+    
+    if 'observacoes' in data:
+        desistencia.observacoes = data['observacoes']
+    
+    # Atualizar dados do título associado
+    if desistencia.titulo:
+        titulo = desistencia.titulo
+        
+        if 'numeroTitulo' in data:
+            titulo.numero = data['numeroTitulo']
+        
+        if 'protocolo' in data:
+            titulo.protocolo = data['protocolo']
+        
+        if 'valor' in data:
+            titulo.valor = data['valor']
+        
+        if 'devedor' in data and titulo.devedor:
+            titulo.devedor.nome = data['devedor']
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Desistência atualizada com sucesso',
+        'id': str(desistencia.id),
+        'numeroTitulo': desistencia.titulo.numero if desistencia.titulo else '',
+        'protocolo': desistencia.titulo.protocolo if desistencia.titulo else '',
+        'devedor': desistencia.titulo.devedor.nome if desistencia.titulo and desistencia.titulo.devedor else '',
+        'valor': float(desistencia.titulo.valor) if desistencia.titulo and desistencia.titulo.valor else 0,
+        'dataSolicitacao': desistencia.data_solicitacao.isoformat() if desistencia.data_solicitacao else None,
+        'motivo': desistencia.motivo,
+        'observacoes': desistencia.observacoes,
+        'status': desistencia.status.upper() if desistencia.status else 'PENDENTE'
+    }), 200
 
 @desistencias.route('/<int:id>/processar', methods=['PUT'])
 @auth_required()
@@ -352,7 +503,15 @@ def processar_desistencia(id):
     
     return jsonify({
         'message': f'Desistência {status.lower()} com sucesso',
-        'desistencia': desistencia.to_dict()
+        'id': str(desistencia.id),
+        'numeroTitulo': desistencia.titulo.numero if desistencia.titulo else '',
+        'protocolo': desistencia.titulo.protocolo if desistencia.titulo else '',
+        'devedor': desistencia.titulo.devedor.nome if desistencia.titulo and desistencia.titulo.devedor else '',
+        'valor': float(desistencia.titulo.valor) if desistencia.titulo and desistencia.titulo.valor else 0,
+        'dataSolicitacao': desistencia.data_solicitacao.isoformat() if desistencia.data_solicitacao else None,
+        'motivo': desistencia.motivo,
+        'observacoes': desistencia.observacoes,
+        'status': status.upper()
     }), 200
 
 @desistencias.route('/estatisticas', methods=['GET'])

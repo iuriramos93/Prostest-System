@@ -31,6 +31,13 @@ export function Relatorios() {
       const dados = await RelatoriosService.obterDadosDashboard();
       setDadosDashboard(dados);
     } catch (error) {
+      console.error("Erro ao carregar dashboard:", error);
+      setDadosDashboard({
+        titulos_por_status: {},
+        remessas_por_mes: [],
+        valor_total_protestado: 0,
+        taxa_sucesso_processamento: 0
+      });
       toast({
         title: "Erro ao carregar dashboard",
         description: "Não foi possível carregar os dados do dashboard.",
@@ -42,8 +49,10 @@ export function Relatorios() {
   const carregarHistorico = async () => {
     try {
       const { relatorios } = await RelatoriosService.obterHistoricoRelatorios();
-      setHistoricoRelatorios(relatorios);
+      setHistoricoRelatorios(relatorios || []);
     } catch (error) {
+      console.error("Erro ao carregar histórico:", error);
+      setHistoricoRelatorios([]);
       toast({
         title: "Erro ao carregar histórico",
         description: "Não foi possível carregar o histórico de relatórios.",
