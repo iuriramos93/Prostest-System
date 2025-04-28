@@ -4,7 +4,7 @@ from functools import wraps
 import time
 import logging
 from flask import request, current_app
-from werkzeug.contrib.cache import SimpleCache
+from flask_caching import SimpleCache
 
 # Cache em memória para dados frequentemente acessados
 cache = SimpleCache()

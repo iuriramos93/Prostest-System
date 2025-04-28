@@ -1,82 +1,85 @@
-services:
-  api:
-    build: .
-    ports:
-      - "5000:5000"
-    working_dir: /app
-    volumes:
-      - ./:/app
-    environment:
-      - FLASK_APP=wsgi.py
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/protest_system
-      - JWT_SECRET_KEY=dev_secret_key_change_in_production
-      - JWT_ACCESS_TOKEN_EXPIRES=86400
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-      - MAIL_SERVER=smtp.example.com
-      - MAIL_PORT=587
-      - MAIL_USERNAME=your_username
-      - MAIL_PASSWORD=your_password
-      - MAIL_DEFAULT_SENDER=noreply@example.com
-      - MAIL_USE_TLS=True
-      - APP_SETTINGS=config.DevelopmentConfig
-      - PYTHONPATH=/app
-    depends_on:
-      - db
-    networks:
-      - protest-network
-    command: ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:application"]
+version: '3.8'
 
+services:
+  # Serviço do banco de dados PostgreSQL
   db:
-    image: postgres:15
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-      - ../sql_scripts:/sql_scripts
+    image: postgres:latest
+    container_name: protestsystem-db
+    restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=protest_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: protestsystem
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
-      - protest-network
+      - protestsystem-network
 
+  # Serviço da API Flask
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: protestsystem-api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/protestsystem
+      SECRET_KEY: sua_chave_secreta_aqui
+      SESSION_COOKIE_SECURE: "True"
+      SESSION_COOKIE_HTTPONLY: "True"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - protestsystem-network
+
+  # Serviço do frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: protestsystem-frontend
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - protestsystem-network
+
+  # Serviço do PGAdmin (opcional)
   pgadmin:
     image: dpage/pgadmin4
+    container_name: protestsystem-pgadmin
+    restart: always
     environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@example.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      PGADMIN_DEFAULT_EMAIL: admin@protestsystem.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
     depends_on:
       - db
     networks:
-      - protest-network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ../dados_teste.sql:/dados_teste.sql
-      - ../database_schema.sql:/database_schema.sql
-
-  frontend:
-    image: node:18
-    working_dir: /app
-    volumes:
-      - ../:/app
-    ports:
-      - "5173:5173"
-    environment:
-      - REACT_APP_API_URL=http://localhost:5000/api
-    command: >
-      bash -c "cd /app && npm install && npm run dev"
-    depends_on:
-      - api
-    networks:
-      - protest-network
-
-networks:
-  protest-network:
-    driver: bridge
+      - protestsystem-network
 
 volumes:
-  postgres_data:
-  pgadmin_data:
+  pgdata:
+    # Volume nomeado para persistência dos dados do PostgreSQL
+  pgadmin-data:
+    # Volume nomeado para persistência dos dados do PGAdmin
+
+networks:
+  protestsystem-network:
+    driver: bridge

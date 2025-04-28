@@ -22,7 +22,7 @@ email-validator==2.1.0.post1
 pdfkit==1.0.0
 
 # Dependências de performance
-Flask-Compress==1.14
+Flask-Compress==1.17
 redis==5.0.1
 Flask-Caching==2.1.0
 

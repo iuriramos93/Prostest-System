@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from flask_compress import Compress
 from flasgger import Swagger
 from config import config
 
@@ -11,6 +12,7 @@ from config import config
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+compress = Compress()
 
 def create_app(config_name=None):
     """Função factory para criar a aplicação Flask"""
@@ -25,6 +27,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    compress.init_app(app)
     
     # Configuração do CORS para permitir requisições do frontend
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)

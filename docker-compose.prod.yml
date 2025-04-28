@@ -1,0 +1,96 @@
+services:
+  # Serviço do banco de dados PostgreSQL
+  db:
+    image: postgres:15
+    container_name: protestsystem-db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=protest_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./sql_scripts:/sql_scripts
+    networks:
+      - protest-network
+
+  # Serviço da API Flask
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: protestsystem-api
+    restart: always
+    working_dir: /app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - FLASK_APP=wsgi.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/protest_system
+      - JWT_SECRET_KEY=dev_secret_key_change_in_production
+      - JWT_ACCESS_TOKEN_EXPIRES=86400
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - MAIL_SERVER=smtp.example.com
+      - MAIL_PORT=587
+      - MAIL_USERNAME=your_username
+      - MAIL_PASSWORD=your_password
+      - MAIL_DEFAULT_SENDER=noreply@example.com
+      - MAIL_USE_TLS=True
+      - APP_SETTINGS=config.DevelopmentConfig
+      - PYTHONPATH=/app
+    depends_on:
+      - db
+    networks:
+      - protest-network
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:application"]
+
+  # Serviço do frontend React
+  frontend:
+    image: node:18
+    container_name: protestsystem-frontend
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "5173:5173"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+    command: >
+      bash -c "cd /app && npm install && npm run dev"
+    depends_on:
+      - api
+    networks:
+      - protest-network
+
+  # Serviço do PGAdmin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: protestsystem-pgadmin
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - protest-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./dados_teste.sql:/dados_teste.sql
+      - ./database_schema.sql:/database_schema.sql
+
+networks:
+  protest-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:
