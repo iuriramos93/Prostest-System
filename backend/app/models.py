@@ -1,6 +1,5 @@
 from datetime import datetime
-
-from app import db
+from app import db, bcrypt
 
 class User(db.Model):
     """Modelo para usuários do sistema"""
@@ -24,6 +23,7 @@ class User(db.Model):
         self.nome_completo = nome_completo
         self.cargo = cargo
         self.admin = admin
+        self.ativo = True
     
     @property
     def password(self):
@@ -31,17 +31,11 @@ class User(db.Model):
     
     @password.setter
     def password(self, password):
-        # Usando bcrypt para gerar hash seguro da senha
-        from flask_bcrypt import Bcrypt
-        from flask import current_app
-        bcrypt = Bcrypt(current_app)
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
     
     def verify_password(self, password):
-        # Verificação usando bcrypt para comparar a senha com o hash armazenado
-        from flask_bcrypt import Bcrypt
-        from flask import current_app
-        bcrypt = Bcrypt(current_app)
+        if not self.password_hash:
+            return False
         return bcrypt.check_password_hash(self.password_hash, password)
     
     def to_dict(self):

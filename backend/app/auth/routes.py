@@ -438,7 +438,7 @@ def logout():
 @auth.route('/seed-admin', methods=['POST'])
 def seed_admin():
     """
-    Cria um usuário administrador inicial (apenas para ambiente de desenvolvimento)
+    Endpoint para criar usuário admin inicial
     ---
     tags:
       - Autenticação
@@ -454,34 +454,30 @@ def seed_admin():
               type: string
     responses:
       201:
-        description: Administrador criado
+        description: Usuário admin criado
       400:
-        description: Chave secreta inválida
+        description: Dados inválidos
       409:
-        description: Administrador já existe
+        description: Usuário admin já existe
     """
-    # Esta rota só deve estar disponível em ambiente de desenvolvimento
-    if os.environ.get('FLASK_ENV') != 'development':
-        return jsonify({'message': 'Rota não disponível em produção'}), 404
-    
     data = request.get_json()
     
-    # Obter a chave secreta do ambiente ou usar o valor padrão apenas para desenvolvimento
-    dev_key = os.environ.get('DEV_SETUP_KEY', 'dev_setup_key')
+    if not data or 'secret_key' not in data:
+        return jsonify({'message': 'Chave secreta não fornecida'}), 400
     
-    if not data or data.get('secret_key') != dev_key:
-        return jsonify({'message': 'Chave secreta inválida'}), 400
+    if data['secret_key'] != 'dev_setup_key':
+        return jsonify({'message': 'Chave secreta inválida'}), 401
     
-    # Verificar se já existe algum administrador
-    if User.query.filter_by(admin=True).first():
-        return jsonify({'message': 'Administrador já existe'}), 409
+    # Verificar se já existe um usuário admin
+    if User.query.filter_by(email='admin@protestsystem.com').first():
+        return jsonify({'message': 'Usuário admin já existe'}), 409
     
-    # Criar usuário administrador
+    # Criar usuário admin
     admin = User(
         username='admin',
-        email='admin@example.com',
+        email='admin@protestsystem.com',
         password='admin123',
-        nome_completo='Administrador do Sistema',
+        nome_completo='Administrador',
         cargo='Administrador',
         admin=True
     )
@@ -489,4 +485,4 @@ def seed_admin():
     db.session.add(admin)
     db.session.commit()
     
-    return jsonify(admin.to_dict()), 201
+    return jsonify({'message': 'Usuário admin criado com sucesso'}), 201

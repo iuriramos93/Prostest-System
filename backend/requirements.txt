@@ -20,6 +20,7 @@ gunicorn==21.2.0
 python-dateutil==2.8.2
 email-validator==2.1.0.post1
 pdfkit==1.0.0
+flask-bcrypt==1.0.1
 
 # Dependências de performance
 Flask-Compress==1.17

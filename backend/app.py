@@ -108,62 +108,6 @@ def create_app(config_name=None):
     def options_handler(path):
         return jsonify({}), 200
     
-    # Rota de teste para verificar se a API está funcionando
-    @app.route('/api/health')
-    def health_check():
-        return {"status": "ok", "message": "API is running"}
-    
-    # Rota para simular autenticação (para teste)
-    @app.route('/api/auth/login', methods=['POST'])
-    def mock_login():
-        try:
-            print("===== DEBUG LOGIN =====")
-            print("Headers:", request.headers)
-            print("Content-Type:", request.headers.get('Content-Type'))
-            print("Method:", request.method)
-            print("Raw data:", request.get_data(as_text=True))
-            print("=======================")
-            
-            # Verifica o tipo de conteúdo
-            if request.headers.get('Content-Type') == 'application/json':
-                data = request.get_json(silent=True)
-                if data is None:
-                    print("Falha ao decodificar JSON")
-                    return jsonify({'error': 'Falha ao decodificar JSON'}), 400
-            else:
-                data = request.form.to_dict() if request.form else {}
-                if not data and request.get_data():
-                    print("Dados recebidos em formato desconhecido")
-                    return jsonify({'error': 'Formato de dados não suportado'}), 400
-            
-            print("Dados processados:", data)
-            
-            email = data.get('email', '')
-            password = data.get('password', '')
-            
-            print(f"Tentativa de login: email={email}, password={'*' * len(password) if password else 'vazio'}")
-            
-            # Simulando verificação de credenciais
-            if email == 'admin@example.com' and password == 'admin123':
-                print("Login bem-sucedido")
-                return jsonify({
-                    'message': 'Login successful',
-                    'user': {
-                        'id': '1',
-                        'email': 'admin@example.com',
-                        'name': 'Administrador',
-                        'admin': True
-                    }
-                })
-            else:
-                print("Credenciais inválidas")
-                return jsonify({'error': 'Invalid credentials'}), 401
-        except Exception as e:
-            import traceback
-            print("Erro processando login:", str(e))
-            print(traceback.format_exc())
-            return jsonify({'error': f'Erro no servidor: {str(e)}'}), 500
-    
     # Rota para listar todas as rotas definidas
     @app.route('/api/routes')
     def list_routes():

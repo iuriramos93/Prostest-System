@@ -6,10 +6,14 @@ from flasgger import Swagger
 from flask_compress import Compress
 from flask_caching import Cache
 from config import config
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager
 
 db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
+bcrypt = Bcrypt()
+jwt = JWTManager()
 
 def create_app(config_name='development'):
     app = Flask(__name__)
@@ -18,6 +22,8 @@ def create_app(config_name='development'):
 
     # Inicializar extensões
     db.init_app(app)
+    bcrypt.init_app(app)
+    jwt.init_app(app)
     CORS(app)
     Migrate(app, db)
     Swagger(app)
@@ -66,6 +72,10 @@ def create_app(config_name='development'):
 
     from app.protestos import protestos as protestos_blueprint
     app.register_blueprint(protestos_blueprint, url_prefix='/api/protestos')
+
+    # Criar tabelas do banco de dados
+    with app.app_context():
+        db.create_all()
 
     return app
 

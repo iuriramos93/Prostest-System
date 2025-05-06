@@ -9,11 +9,12 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: protestsystem
+      POSTGRES_DB: protest_system
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./sql_scripts:/sql_scripts
     networks:
       - protestsystem-network
 
@@ -29,7 +30,7 @@ services:
     environment:
       FLASK_APP: app.py
       FLASK_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/protestsystem
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/protest_system
       SECRET_KEY: sua_chave_secreta_aqui
       SESSION_COOKIE_SECURE: "True"
       SESSION_COOKIE_HTTPONLY: "True"
@@ -43,7 +44,7 @@ services:
   # Serviço do frontend React unificado
   frontend:
     build:
-      context: ./frontend-unified
+      context: .
       dockerfile: Dockerfile
     container_name: protestsystem-frontend
     restart: always
@@ -52,7 +53,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend-unified:/app
+      - ./:/app
       - /app/node_modules
     networks:
       - protestsystem-network
