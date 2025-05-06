@@ -30,22 +30,11 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path,
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
-          });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Enviando requisição para:', req.method, req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Recebendo resposta de:', req.method, req.url, proxyRes.statusCode);
-          });
-        },
-      }
+      },
     }
   },
   build: {
+    outDir: 'dist',
     // Otimizações de build
     target: 'es2015',
     minify: 'terser',
@@ -70,6 +59,6 @@ export default defineConfig({
       }
     },
     // Gera sourcemaps apenas em desenvolvimento
-    sourcemap: process.env.NODE_ENV !== 'production'
+    sourcemap: true
   }
 }) 

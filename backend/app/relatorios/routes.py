@@ -675,6 +675,76 @@ def metricas_desempenho():
         }
     }), 200
 
+@relatorios.route('/', methods=['GET'])
+@auth_required()
+def relatorio_dashboard():
+    """
+    Retorna dados para o dashboard
+    ---
+    tags:
+      - Relatórios
+    security:
+      - JWT: []
+    parameters:
+      - name: tipo
+        in: query
+        type: string
+        required: false
+        description: Tipo de relatório (dashboard)
+    responses:
+      200:
+        description: Dados do dashboard
+    """
+    # Obter dados dos últimos 6 meses
+    data_inicio = datetime.now() - timedelta(days=180)
+    
+    # Títulos por status
+    titulos_por_status = db.session.query(
+        Titulo.status,
+        func.count(Titulo.id)
+    ).filter(
+        Titulo.data_cadastro >= data_inicio
+    ).group_by(Titulo.status).all()
+    
+    # Remessas por mês
+    remessas_por_mes = db.session.query(
+        func.date_trunc('month', Remessa.data_envio).label('mes'),
+        func.count(Remessa.id).label('quantidade')
+    ).filter(
+        Remessa.data_envio >= data_inicio
+    ).group_by('mes').order_by('mes').all()
+    
+    # Valor total protestado
+    valor_total = db.session.query(
+        func.sum(Titulo.valor)
+    ).filter(
+        Titulo.status == 'Protestado',
+        Titulo.data_cadastro >= data_inicio
+    ).scalar() or 0
+    
+    # Taxa de sucesso no processamento
+    total_remessas = Remessa.query.filter(Remessa.data_envio >= data_inicio).count()
+    remessas_sucesso = Remessa.query.filter(
+        Remessa.data_envio >= data_inicio,
+        Remessa.status == 'Processado'
+    ).count()
+    
+    taxa_sucesso = (remessas_sucesso / total_remessas * 100) if total_remessas > 0 else 0
+    
+    # Formatar dados para retorno
+    return jsonify({
+        'titulos_por_status': dict(titulos_por_status),
+        'remessas_por_mes': [
+            {
+                'mes': mes.strftime('%b'),
+                'quantidade': quantidade
+            }
+            for mes, quantidade in remessas_por_mes
+        ],
+        'valor_total_protestado': float(valor_total),
+        'taxa_sucesso_processamento': round(taxa_sucesso, 1)
+    }), 200
+
 # Funções auxiliares para geração de PDF
 def gerar_pdf_titulos(dados, resumo):
     """

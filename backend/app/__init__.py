@@ -20,11 +20,25 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
 
+    # Configurar JWT
+    app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY', 'jwt-secret-string')
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = app.config.get('JWT_ACCESS_TOKEN_EXPIRES')
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = app.config.get('JWT_REFRESH_TOKEN_EXPIRES')
+
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    CORS(app)
+    
+    # Configurar CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3002"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
+    
     Migrate(app, db)
     Swagger(app)
     

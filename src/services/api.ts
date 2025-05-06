@@ -4,25 +4,54 @@ import axios from 'axios';
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Configuração do axios com token
-const getAuthHeader = () => {
+// Criar instância do axios com configurações base
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Interceptor para adicionar token em todas as requisições
+api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Interceptor para tratamento global de erros
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      console.error('Erro na resposta da API:', error.response.data);
+      
+      // Se o token expirou, redirecionar para o login
+      if (error.response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+    } else {
+      // Erro ao configurar a requisição
+      console.error('Erro na requisição:', error.message);
     }
-  };
-};
+    return Promise.reject(error);
+  }
+);
 
 // Serviço para remessas
 export const remessaService = {
   // Enviar uma nova remessa
   enviarRemessa: async (formData: FormData) => {
     try {
-      const response = await axios.post(`${API_URL}/remessas`, formData, {
-        ...getAuthHeader(),
+      const response = await api.post('/api/remessas', formData, {
         headers: {
-          ...getAuthHeader().headers,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -36,8 +65,7 @@ export const remessaService = {
   // Listar remessas
   listarRemessas: async (filtros?: any) => {
     try {
-      const response = await axios.get(`${API_URL}/remessas`, {
-        ...getAuthHeader(),
+      const response = await api.get('/api/remessas', {
         params: filtros
       });
       return response.data;
@@ -50,7 +78,7 @@ export const remessaService = {
   // Obter detalhes de uma remessa
   obterRemessa: async (id: string) => {
     try {
-      const response = await axios.get(`${API_URL}/remessas/${id}`, getAuthHeader());
+      const response = await api.get(`/api/remessas/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Erro ao obter remessa ${id}:`, error);
@@ -64,10 +92,8 @@ export const desistenciaService = {
   // Enviar uma nova desistência
   enviarDesistencia: async (formData: FormData) => {
     try {
-      const response = await axios.post(`${API_URL}/desistencias`, formData, {
-        ...getAuthHeader(),
+      const response = await api.post('/api/desistencias', formData, {
         headers: {
-          ...getAuthHeader().headers,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -81,13 +107,11 @@ export const desistenciaService = {
   // Listar desistências
   listarDesistencias: async (filtros?: any) => {
     try {
-      // Tentar fazer a requisição ao servidor
-      const response = await axios.get(`${API_URL}/desistencias`, {
-        ...getAuthHeader(),
+      const response = await api.get('/api/desistencias', {
         params: filtros
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao listar desistências:", error);
       
       // Se o servidor não estiver disponível, retornar dados simulados
@@ -143,8 +167,8 @@ export const desistenciaService = {
   }
 };
 
-// Exportar outros serviços conforme necessário
 export default {
+  api,
   remessaService,
   desistenciaService
 };

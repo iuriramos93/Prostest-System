@@ -1,9 +1,6 @@
 -- Dados de teste para o Sistema de Protesto
 -- PostgreSQL
 
--- Conectar ao banco de dados
-\c protest_system
-
 -- Inserir usuários
 INSERT INTO users (username, email, password_hash, nome_completo, cargo, ativo, admin, ultimo_acesso)
 VALUES

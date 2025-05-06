@@ -83,6 +83,8 @@ export function AnaliseErros() {
         statusFiltro = "Pendente";
       } else if (activeTab === "resolvidos") {
         statusFiltro = "Resolvido";
+      } else if (status === "todos") {
+        statusFiltro = "";
       }
       
       const response = await ErrosService.listarErros({
@@ -207,7 +209,7 @@ export function AnaliseErros() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Resolvido">Resolvido</SelectItem>
                 </SelectContent>
