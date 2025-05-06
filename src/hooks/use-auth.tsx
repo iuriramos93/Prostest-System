@@ -75,26 +75,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Função de login simplificada sem JWT
   const login = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      // Usando a URL base correta com o proxy configurado
-      const response = await api.post(`/auth/login`, {
-        email,
-        password
+      console.log("Tentando fazer login com:", { email, password: "***" });
+      
+      // Usando fetch diretamente para maior controle
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
       
-      // Extrair apenas os dados do usuário
-      const { user: userData } = response.data;
+      console.log("Status da resposta:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erro no servidor:", errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Resposta de login:", data);
+      
+      if (!data.user) {
+        throw new Error("Dados do usuário não retornados");
+      }
       
       // Salvar os dados do usuário no localStorage para persistência
-      localStorage.setItem("userData", JSON.stringify(userData));
+      localStorage.setItem("userData", JSON.stringify(data.user));
       
       // Atualizar o estado do usuário
-      setUser(userData);
-      setIsLoading(false);
+      setUser(data.user);
     } catch (error) {
-      setIsLoading(false);
-      console.error("Erro ao fazer login:", error);
+      console.error("Erro detalhado ao fazer login:", error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

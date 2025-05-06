@@ -29,14 +29,15 @@ export default defineConfig({
       // Configuração do HMR
       host: 'localhost',
       protocol: 'ws',
-      port: 3002, // Usa a mesma porta que o servidor Vite
+      port: 3003, // Atualizar para a porta atual que está sendo usada
     },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        // Não reescrever o caminho, manter /api no início
+        rewrite: (path) => path,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
             console.log('proxy error', err);
