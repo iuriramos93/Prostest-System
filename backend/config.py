@@ -46,9 +46,9 @@ class Config:
 class DevelopmentConfig(Config):
     """Configuração de desenvolvimento"""
     DEBUG = True
-    # Configuração para usar o banco de dados no Docker
+    # Configuração para usar o banco de dados no Docker ou local
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@db:5432/protestsystem'
+        'postgresql://postgres:postgres@localhost:5432/protestsystem'
 
 
 class TestingConfig(Config):
@@ -83,9 +83,15 @@ class ProductionConfig(Config):
         app.logger.info('Protest System startup')
 
 
+class LocalDevelopmentConfig(DevelopmentConfig):
+    """Configuração para desenvolvimento local fora do Docker"""
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'local-dev.db')
+
+
 config = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'local': LocalDevelopmentConfig,
+    'default': LocalDevelopmentConfig if os.environ.get('FLASK_ENV') == 'local' else DevelopmentConfig
 }

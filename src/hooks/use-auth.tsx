@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import axios from "axios";
 
@@ -26,8 +25,8 @@ interface AuthContextType {
 // Criando o contexto de autenticação
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// API base URL - Usar o proxy configurado no Vite
+const API_URL = '/api'; // Será redirecionado para http://localhost:5000 pelo proxy do Vite
 
 // Configuração do axios
 const api = axios.create({
@@ -35,9 +34,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Para enviar cookies CORS
 });
-
-// Configuração simplificada sem interceptor de token
 
 // Provider para o contexto de autenticação
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -78,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função de login simplificada sem JWT
   const login = async (email: string, password: string) => {
     try {
-      // Usando a URL base correta
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
+      // Usando a URL base correta com o proxy configurado
+      const response = await api.post(`/auth/login`, {
         email,
         password
       });

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
+import react from '@vitejs/plugin-react'
 import path from 'path'
 import { compression } from 'vite-plugin-compression2'
 
@@ -20,14 +20,36 @@ export default defineConfig({
     },
   },
   server: {
-    // Add security headers for development server
-    headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Resource-Policy': 'same-origin',
+    // Configurações do servidor de desenvolvimento
+    host: '0.0.0.0',
+    port: 3002, // Mudando para 3002 porque a 3001 está ocupada
+    strictPort: false, // Permitir que use a próxima porta se 3002 estiver ocupada
+    cors: true, // Habilita CORS para todas as requisições do servidor de desenvolvimento
+    hmr: {
+      // Configuração do HMR
+      host: 'localhost',
+      protocol: 'ws',
+      port: 3002, // Usa a mesma porta que o servidor Vite
     },
-    // Only allow connections from localhost
-    host: 'localhost',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Enviando requisição para:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Recebendo resposta de:', req.method, req.url, proxyRes.statusCode);
+          });
+        },
+      }
+    }
   },
   build: {
     // Otimizações de build
@@ -45,6 +67,15 @@ export default defineConfig({
             '@radix-ui/react-dropdown-menu',
             '@radix-ui/react-toast',
             '@radix-ui/react-tabs',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-label',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-select',
+            '@radix-ui/react-toggle',
+            '@radix-ui/react-toggle-group',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-separator'
           ],
         },
         // Limita o tamanho dos chunks
@@ -56,4 +87,4 @@ export default defineConfig({
     // Gera sourcemaps apenas em desenvolvimento
     sourcemap: process.env.NODE_ENV !== 'production',
   },
-})
+}) 

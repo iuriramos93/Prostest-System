@@ -1,22 +1,18 @@
-FROM python:3.11-slim
+FROM node:18
 
 WORKDIR /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Copiar arquivos de configuração
+COPY package*.json ./
 
-# Copiar requirements e instalar dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Instalar dependências
+RUN npm install
 
-# Copiar o código da aplicação
+# Copiar código fonte
 COPY . .
 
 # Expor a porta que a aplicação usará
-EXPOSE 5000
+EXPOSE 3000
 
-# Comando para iniciar a aplicação
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:application"]
+# Comando para iniciar a aplicação em modo de desenvolvimento
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 

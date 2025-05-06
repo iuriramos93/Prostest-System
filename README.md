@@ -1,76 +1,66 @@
+# ProtestSystem
 
-# Sistema de Protesto - Dashboard
+Sistema de Gestão de Protestos desenvolvido com React e Flask.
 
-## Visão Geral
+## Estrutura do Projeto
 
-Um sistema de dashboard para cartório de protesto, desenvolvido com React, TypeScript e componentes UI modernos. Este sistema permite gerenciar o processo de envio, consulta e análise de remessas e títulos de protesto.
+Após a unificação das pastas de frontend, o projeto possui a seguinte estrutura:
 
-## Tecnologias
+```
+/
+├── backend/            # Código do backend em Flask
+├── src/                # Código do frontend em React
+│   ├── components/     # Componentes reutilizáveis
+│   ├── hooks/          # Custom hooks React
+│   ├── layouts/        # Layouts da aplicação
+│   ├── lib/            # Bibliotecas e utilitários
+│   ├── models/         # Interfaces e tipos
+│   ├── pages/          # Páginas da aplicação
+│   ├── routes/         # Configuração de rotas
+│   ├── services/       # Serviços para API
+│   ├── App.tsx         # Componente principal
+│   ├── main.tsx        # Entrada da aplicação
+│   └── ...
+├── docker-compose.yml  # Configuração do Docker Compose
+├── Dockerfile          # Configuração do Docker para o frontend
+├── package.json        # Dependências do projeto
+└── vite.config.ts      # Configuração do Vite
+```
 
-### Frontend
-- React + Vite (TypeScript)
-- Tailwind CSS para estilização
-- shadcn/ui para componentes
-- TanStack Query para gerenciamento de estado e requisições
-- React Router para navegação
+## Requisitos
 
-### Backend (Sujeito a mudança - Flask)
-- Python 3.11 + Django + Django REST Framework
-- Autenticação JWT
-- Docker + PostgreSQL
+- Node.js 18+
+- Docker e Docker Compose
 
-## Funcionalidades Atuais
+## Executando o Projeto
 
-1. **Autenticação**
-   - Sistema de login/logout
-   - Proteção de rotas
-
-2. **Dashboard**
-   - Visão geral com métricas principais
-   - Listagem das últimas remessas
-
-3. **Envio de Documentos**
-   - Upload de arquivos XML
-   - Seleção de UF e tipo de documento
-
-4. **Consulta de Remessas**
-   - Filtros por número, data e status
-   - Visualização detalhada
-
-5. **Consulta de Títulos**
-   - Busca de títulos por número e data
-   - Detalhes completos do título
-
-6. **Tema Claro/Escuro**
-   - Suporte para alternância entre temas
-
-## Configuração do Ambiente de Desenvolvimento
-
-```sh
-# Clonar o repositório
-git clone https://github.com/buziodev/Prostest-System/
-
-# Entrar no diretório do projeto
-cd sistema-protesto
-
-# Instalar dependências
+1. Instale as dependências:
+```
 npm install
+```
 
-# Iniciar servidor de desenvolvimento
+2. Execute a aplicação com Docker Compose:
+```
+docker-compose up -d
+```
+
+3. Acesse a aplicação:
+   - Frontend: http://localhost:3000
+   - API: http://localhost:5000
+   - PGAdmin: http://localhost:5050
+
+## Desenvolvimento
+
+Para desenvolvimento local sem Docker:
+
+```
 npm run dev
 ```
 
-## Autenticação (Modo de Desenvolvimento)
+## Testes
 
-Para testar a autenticação, use as seguintes credenciais:
+Para executar os testes:
 
-- Email: admin@example.com
-- Senha: admin123
-
-## Próximos Passos
-
-- Implementação das páginas de Desistências, Análise de Erros e Relatórios
-- Integração com backend Django para autenticação e operações CRUD
-- Implementação da paginação nas listagens
-- Melhorias na responsividade para dispositivos móveis
-- Implementação de testes automatizados
+```
+npm test
+```

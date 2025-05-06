@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # Serviço do banco de dados PostgreSQL
   db:
@@ -38,10 +40,10 @@ services:
     networks:
       - protestsystem-network
 
-  # Serviço do frontend React
+  # Serviço do frontend React unificado
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend-unified
       dockerfile: Dockerfile
     container_name: protestsystem-frontend
     restart: always
@@ -50,7 +52,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      - ./frontend-unified:/app
       - /app/node_modules
     networks:
       - protestsystem-network
@@ -80,4 +82,4 @@ volumes:
 
 networks:
   protestsystem-network:
-    driver: bridge
+    driver: bridge 
