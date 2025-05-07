@@ -2,10 +2,11 @@ import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, create_access_token
 from flask_cors import CORS
 from flask_compress import Compress
 from flasgger import Swagger
+from werkzeug.security import check_password_hash
 from config import config
 
 # Inicialização das extensões
@@ -23,6 +24,11 @@ def create_app(config_name=None):
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
     
+    # Configurar JWT
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'sua_chave_jwt_aqui')
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600  # 1 hora
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = 604800  # 7 dias
+    
     # Inicializar extensões
     db.init_app(app)
     migrate.init_app(app, db)
@@ -31,7 +37,7 @@ def create_app(config_name=None):
     
     # Configuração do CORS para permitir requisições do frontend
     # Definindo origens permitidas
-    origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", 
+    origins = ["http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003", 
                "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003"]
     
     CORS(app, 
@@ -113,56 +119,52 @@ def create_app(config_name=None):
     def health_check():
         return {"status": "ok", "message": "API is running"}
     
-    # Rota para simular autenticação (para teste)
+    # Rota de login
     @app.route('/api/auth/login', methods=['POST'])
-    def mock_login():
+    def login():
         try:
-            print("===== DEBUG LOGIN =====")
-            print("Headers:", request.headers)
-            print("Content-Type:", request.headers.get('Content-Type'))
-            print("Method:", request.method)
-            print("Raw data:", request.get_data(as_text=True))
-            print("=======================")
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
             
-            # Verifica o tipo de conteúdo
-            if request.headers.get('Content-Type') == 'application/json':
-                data = request.get_json(silent=True)
-                if data is None:
-                    print("Falha ao decodificar JSON")
-                    return jsonify({'error': 'Falha ao decodificar JSON'}), 400
-            else:
-                data = request.form.to_dict() if request.form else {}
-                if not data and request.get_data():
-                    print("Dados recebidos em formato desconhecido")
-                    return jsonify({'error': 'Formato de dados não suportado'}), 400
+            email = data.get('email')
+            senha = data.get('senha')
             
-            print("Dados processados:", data)
+            if not email or not senha:
+                return jsonify({'error': 'Email e senha são obrigatórios'}), 400
             
-            email = data.get('email', '')
-            password = data.get('password', '')
+            # Buscar usuário no banco de dados
+            from app.models import User
+            user = User.query.filter_by(email=email).first()
             
-            print(f"Tentativa de login: email={email}, password={'*' * len(password) if password else 'vazio'}")
+            if not user or not check_password_hash(user.password_hash, senha):
+                return jsonify({'error': 'Credenciais inválidas'}), 401
             
-            # Simulando verificação de credenciais
-            if email == 'admin@example.com' and password == 'admin123':
-                print("Login bem-sucedido")
-                return jsonify({
-                    'message': 'Login successful',
-                    'user': {
-                        'id': '1',
-                        'email': 'admin@example.com',
-                        'name': 'Administrador',
-                        'admin': True
-                    }
-                })
-            else:
-                print("Credenciais inválidas")
-                return jsonify({'error': 'Invalid credentials'}), 401
+            if not user.ativo:
+                return jsonify({'error': 'Usuário inativo'}), 401
+            
+            # Criar token JWT
+            access_token = create_access_token(identity=user.id)
+            
+            # Atualizar último acesso
+            user.ultimo_acesso = db.func.current_timestamp()
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Login successful',
+                'access_token': access_token,
+                'user': {
+                    'id': str(user.id),
+                    'email': user.email,
+                    'nome_completo': user.nome_completo,
+                    'username': user.username,
+                    'cargo': user.cargo,
+                    'admin': user.admin
+                }
+            })
         except Exception as e:
-            import traceback
-            print("Erro processando login:", str(e))
-            print(traceback.format_exc())
-            return jsonify({'error': f'Erro no servidor: {str(e)}'}), 500
+            app.logger.error(f"Erro no login: {str(e)}")
+            return jsonify({'error': 'Erro interno do servidor'}), 500
     
     # Rota para listar todas as rotas definidas
     @app.route('/api/routes')
@@ -191,4 +193,4 @@ def create_app(config_name=None):
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True)

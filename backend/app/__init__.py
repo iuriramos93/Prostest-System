@@ -8,6 +8,8 @@ from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
+import os
+import time
 
 db = SQLAlchemy()
 compress = Compress()
@@ -19,6 +21,11 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
+
+    # Configurar banco de dados
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
+        'postgresql://postgres:postgres@db:5432/protest_system'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Configurar JWT
     app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY', 'jwt-secret-string')
@@ -32,10 +39,11 @@ def create_app(config_name='development'):
     
     # Configurar CORS
     CORS(app, resources={
-        r"/api/*": {
-            "origins": ["http://localhost:3002"],
+        r"/*": {
+            "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
         }
     })
     
@@ -61,6 +69,23 @@ def create_app(config_name='development'):
     # Inicializar sistema de tarefas assíncronas
     from app.utils.async_tasks import init_async_tasks
     init_async_tasks(app)
+
+    # Adicionar endpoint de saúde
+    @app.route('/health')
+    def health_check():
+        try:
+            # Verificar conexão com banco de dados
+            db.session.execute('SELECT 1')
+            db_status = 'ok'
+        except Exception as e:
+            app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
+            db_status = 'error'
+        
+        return {
+            'status': 'ok' if db_status == 'ok' else 'error',
+            'database': db_status,
+            'timestamp': time.time()
+        }
 
     # Registrar blueprints
     from app.auth import auth as auth_blueprint

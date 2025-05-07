@@ -27,8 +27,8 @@ var vite_config_default = defineConfig({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Resource-Policy": "same-origin"
     },
-    // Only allow connections from localhost
-    host: "localhost"
+    // Only allow connections from 127.0.0.1
+    host: "127.0.0.1"
   },
   build: {
     // Otimizações de build

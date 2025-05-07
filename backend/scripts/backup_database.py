@@ -41,7 +41,7 @@ DEFAULT_CONFIG = {
     "backup_dir": "../backups",
     "db_name": "protest_db",
     "db_user": "postgres",
-    "db_host": "localhost",
+    "db_host": "127.0.0.1",
     "db_port": "5432",
     "retention_days": 30,
     "compression": True,
@@ -212,7 +212,7 @@ def send_notification(success, backup_file, config):
         from email.mime.text import MIMEText
         
         # Configurações de e-mail
-        smtp_server = config.get("smtp_server", "localhost")
+        smtp_server = config.get("smtp_server", "127.0.0.1")
         smtp_port = config.get("smtp_port", 25)
         smtp_user = config.get("smtp_user", "")
         smtp_password = config.get("smtp_password", "")

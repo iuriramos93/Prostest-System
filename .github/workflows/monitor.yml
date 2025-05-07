@@ -1,0 +1,104 @@
+name: Monitoramento e Rollback
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # A cada 5 minutos
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente para monitorar'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - production
+      action:
+        description: 'Ação a ser executada'
+        required: true
+        default: 'monitor'
+        type: choice
+        options:
+          - monitor
+          - rollback
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check frontend metrics
+        run: |
+          curl -s ${{ github.event.inputs.environment == 'production' && secrets.PROD_FRONTEND_URL || secrets.DEV_FRONTEND_URL }}/metrics | grep -q "up 1" || exit 1
+          
+      - name: Check backend metrics
+        run: |
+          curl -s ${{ github.event.inputs.environment == 'production' && secrets.PROD_BACKEND_URL || secrets.DEV_BACKEND_URL }}/metrics | grep -q "up 1" || exit 1
+          
+      - name: Check database connection
+        run: |
+          curl -s ${{ github.event.inputs.environment == 'production' && secrets.PROD_BACKEND_URL || secrets.DEV_BACKEND_URL }}/health | grep -q "database: ok" || exit 1
+          
+      - name: Check disk space
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ github.event.inputs.environment == 'production' && secrets.PROD_HOST || secrets.DEV_HOST }}
+          username: ${{ github.event.inputs.environment == 'production' && secrets.PROD_USERNAME || secrets.DEV_USERNAME }}
+          key: ${{ github.event.inputs.environment == 'production' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          script: |
+            df -h / | awk 'NR==2 {if ($5 > 90) exit 1}'
+            
+      - name: Check memory usage
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ github.event.inputs.environment == 'production' && secrets.PROD_HOST || secrets.DEV_HOST }}
+          username: ${{ github.event.inputs.environment == 'production' && secrets.PROD_USERNAME || secrets.DEV_USERNAME }}
+          key: ${{ github.event.inputs.environment == 'production' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          script: |
+            free -m | awk 'NR==2 {if ($3/$2 > 0.9) exit 1}'
+            
+      - name: Check container health
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ github.event.inputs.environment == 'production' && secrets.PROD_HOST || secrets.DEV_HOST }}
+          username: ${{ github.event.inputs.environment == 'production' && secrets.PROD_USERNAME || secrets.DEV_USERNAME }}
+          key: ${{ github.event.inputs.environment == 'production' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          script: |
+            docker ps --format "{{.Status}}" | grep -q "Up" || exit 1
+
+  rollback:
+    needs: monitor
+    if: github.event.inputs.action == 'rollback' && failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback to previous version
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ github.event.inputs.environment == 'production' && secrets.PROD_HOST || secrets.DEV_HOST }}
+          username: ${{ github.event.inputs.environment == 'production' && secrets.PROD_USERNAME || secrets.DEV_USERNAME }}
+          key: ${{ github.event.inputs.environment == 'production' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          script: |
+            cd /opt/protest-system
+            docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml down
+            docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml pull
+            docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml up -d
+            docker system prune -f
+            
+      - name: Verify rollback
+        run: |
+          sleep 30  # Aguarda os serviços iniciarem
+          curl -f ${{ github.event.inputs.environment == 'production' && secrets.PROD_FRONTEND_URL || secrets.DEV_FRONTEND_URL }}/health
+          curl -f ${{ github.event.inputs.environment == 'production' && secrets.PROD_BACKEND_URL || secrets.DEV_BACKEND_URL }}/health
+
+  notify:
+    needs: [monitor, rollback]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always() 

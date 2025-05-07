@@ -45,9 +45,9 @@ docker-compose up -d
 ```
 
 3. Acesse a aplicação:
-   - Frontend: http://localhost:3000
-   - API: http://localhost:5000
-   - PGAdmin: http://localhost:5050
+   - Frontend: http://127.0.0.1:3000
+   - API: http://127.0.0.1:5000
+   - PGAdmin: http://127.0.0.1:5050
 
 ## Desenvolvimento
 

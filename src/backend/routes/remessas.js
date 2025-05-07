@@ -12,7 +12,7 @@ const router = express.Router();
 // Configuração do banco de dados
 const pool = new Pool({
   user: 'protest_app',
-  host: 'localhost',
+  host: '127.0.0.1',
   database: 'protest_system',
   password: 'senha_segura',
   port: 5432,

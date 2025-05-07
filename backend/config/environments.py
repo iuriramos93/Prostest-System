@@ -53,7 +53,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protest_dev'
+        'postgresql://postgres:postgres@127.0.0.1:5432/protest_dev'
     
     # Desativar segurança de cookies em desenvolvimento
     JWT_COOKIE_SECURE = False
@@ -75,7 +75,7 @@ class TestingConfig(Config):
     DEBUG = False
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protest_test'
+        'postgresql://postgres:postgres@127.0.0.1:5432/protest_test'
     
     # Desativar segurança de cookies em testes
     JWT_COOKIE_SECURE = False

@@ -99,7 +99,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
    User=www-data
    WorkingDirectory=/path/to/ProtestSystem/backend
    Environment="PATH=/path/to/ProtestSystem/backend/venv/bin"
-   ExecStart=/path/to/ProtestSystem/backend/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 wsgi:app
+   ExecStart=/path/to/ProtestSystem/backend/venv/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 wsgi:app
    Restart=always
 
    [Install]
@@ -133,7 +133,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
        }
 
        location /api {
-           proxy_pass http://localhost:5000;
+           proxy_pass http://127.0.0.1:5000;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
        }
@@ -211,7 +211,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
        }
 
        location /api {
-           proxy_pass http://localhost:5000;
+           proxy_pass http://127.0.0.1:5000;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -263,7 +263,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
      - job_name: 'protest-system'
        scrape_interval: 15s
        static_configs:
-         - targets: ['localhost:5000']
+         - targets: ['127.0.0.1:5000']
    ```
 
 3. Configure dashboards no Grafana para visualizar métricas.
@@ -360,7 +360,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
    npm run build
    ```
 
-6. Reinicie os serviços:cp docker-compose.yml docker-compose.prod.yml
+6. Reinicie os serviços:
    ```bash
    sudo systemctl restart protest-api
    sudo systemctl restart nginx
@@ -372,3 +372,72 @@ Em caso de problemas durante o deploy, consulte os logs do sistema:
 - Logs do backend: `/var/log/protest-system/app.log`
 - Logs do Nginx: `/var/log/nginx/error.log`
 - Logs do sistema: `journalctl -u protest-api`
+
+### 5. Comandos para Reconstruir e Testar
+
+Aqui estão os comandos necessários para reconstruir e testar o sistema:
+
+```bash
+# 1. Parar e remover containers existentes
+docker-compose down -v
+
+# 2. Reconstruir imagens
+docker-compose build --no-cache
+
+# 3. Iniciar serviços
+docker-compose up -d
+
+# 4. Verificar logs
+docker-compose logs -f
+
+# 5. Verificar status dos containers
+docker-compose ps
+
+# 6. Testar conexão com o banco
+docker-compose exec db psql -U postgres -d protest_system -c "\dt"
+
+# 7. Testar API
+curl http://127.0.0.1:5000/api/health
+
+# 8. Testar login
+curl -X POST http://127.0.0.1:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}'
+
+# 9. Testar frontend
+curl http://127.0.0.1:3000/health
+```
+
+### 6. Observações e Boas Práticas
+
+1. **Versionamento**:
+   - Use tags semânticas para releases
+   - Mantenha um changelog
+   - Documente breaking changes
+   - Use branches de feature
+
+2. **Rollback**:
+   - Mantenha backups do banco
+   - Use volumes para persistência
+   - Implemente health checks
+   - Monitore logs
+
+3. **Segurança**:
+   - Use secrets para credenciais
+   - Implemente rate limiting
+   - Monitore vulnerabilidades
+   - Faça scan de imagens
+
+4. **Performance**:
+   - Use cache de dependências
+   - Otimize builds
+   - Monitore recursos
+   - Implemente lazy loading
+
+5. **Monitoramento**:
+   - Configure alertas
+   - Monitore métricas
+   - Mantenha logs
+   - Implemente tracing
+
+Gostaria de explorar algum aspecto específico em mais detalhes?

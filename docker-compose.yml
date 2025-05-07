@@ -17,6 +17,11 @@ services:
       - ./sql_scripts:/sql_scripts
     networks:
       - protestsystem-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Serviço da API Flask
   api:
@@ -26,7 +31,8 @@ services:
     container_name: protestsystem-api
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       FLASK_APP: app.py
       FLASK_ENV: development
@@ -51,7 +57,7 @@ services:
     depends_on:
       - api
     ports:
-      - "3000:3000"
+      - "3002:3002"
     volumes:
       - ./:/app
       - /app/node_modules

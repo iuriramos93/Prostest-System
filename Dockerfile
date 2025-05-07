@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 3000
 
 # Comando para iniciar a aplicação em modo de desenvolvimento
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 
+CMD ["npm", "run", "dev", "--", "--host", "127.0.0.1"] 

@@ -34,7 +34,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/protest_system
       - JWT_SECRET_KEY=dev_secret_key_change_in_production
       - JWT_ACCESS_TOKEN_EXPIRES=86400
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - CORS_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:5173
       - MAIL_SERVER=smtp.example.com
       - MAIL_PORT=587
       - MAIL_USERNAME=your_username
@@ -47,7 +47,7 @@ services:
       - db
     networks:
       - protest-network
-    command: ["gunicorn", "--bind", "0.0.0.0:5000", "wsgi:application"]
+    command: ["gunicorn", "--bind", "127.0.0.1:5000", "wsgi:application"]
 
   # Serviço do frontend React
   frontend:
@@ -60,7 +60,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_API_URL=http://127.0.0.1:5000/api
     command: >
       bash -c "cd /app && npm install && npm run dev"
     depends_on:

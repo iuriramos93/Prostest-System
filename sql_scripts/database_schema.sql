@@ -1,9 +1,6 @@
 -- Esquema do Banco de Dados para o Sistema de Protesto
 -- PostgreSQL
 
--- Criação do banco de dados
-CREATE DATABASE protest_system;
-
 -- Tabela de usuários
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,

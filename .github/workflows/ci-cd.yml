@@ -44,7 +44,7 @@ jobs:
         cd backend
         python -m pytest --cov=app --cov-report=xml
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/protest_test
+        DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/protest_test
         SECRET_KEY: test_secret_key
         JWT_SECRET_KEY: test_jwt_secret
 

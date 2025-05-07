@@ -48,14 +48,14 @@ class DevelopmentConfig(Config):
     DEBUG = True
     # Configuração para usar o banco de dados no Docker ou local
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protestsystem'
+        'postgresql://postgres:postgres@db:5432/protest_system'
 
 
 class TestingConfig(Config):
     """Configuração de teste"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'postgresql://postgres:postgres@localhost:5432/protest_system_test'
+        'postgresql://postgres:postgres@127.0.0.1:5432/protest_system_test'
 
 
 class ProductionConfig(Config):

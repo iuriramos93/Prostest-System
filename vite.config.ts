@@ -19,17 +19,46 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      'recharts',
+      'lodash',
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tabs'
+    ],
+    exclude: ['@types/*']
+  },
   server: {
     // Configurações do servidor de desenvolvimento
-    host: '0.0.0.0',
+    host: '127.0.0.1',
     port: 3002,
     strictPort: true,
     cors: true,
+    hmr: {
+      clientPort: 3002,
+      timeout: 5000
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Sending Request to the Target:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          });
+        }
       },
     }
   },
@@ -50,7 +79,8 @@ export default defineConfig({
             '@radix-ui/react-dropdown-menu',
             '@radix-ui/react-toast',
             '@radix-ui/react-tabs'
-          ]
+          ],
+          charts: ['recharts', 'lodash']
         },
         // Limita o tamanho dos chunks
         chunkFileNames: 'assets/js/[name]-[hash].js',

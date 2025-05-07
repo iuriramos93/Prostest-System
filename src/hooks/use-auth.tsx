@@ -25,16 +25,13 @@ interface AuthContextType {
 // Criando o contexto de autenticação
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// API base URL - Usar o proxy configurado no Vite
-const API_URL = '/api'; // Será redirecionado para http://localhost:5000 pelo proxy do Vite
-
 // Configuração do axios
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '/api',
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Para enviar cookies CORS
+  withCredentials: true,
 });
 
 // Provider para o contexto de autenticação
@@ -52,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  // Função para verificar a sessão do usuário (simplificada sem JWT)
+  // Função para verificar a sessão do usuário
   const checkSession = async (): Promise<boolean> => {
     const userDataStr = localStorage.getItem("userData");
     
@@ -62,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      // Recuperar os dados do usuário do localStorage
       const userData = JSON.parse(userDataStr);
       setUser(userData);
       return true;
@@ -73,42 +69,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Função de login simplificada sem JWT
+  // Função de login
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log("Tentando fazer login com:", { email, password: "***" });
+      console.log("Tentando fazer login com:", { email });
       
-      // Usando fetch diretamente para maior controle
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, senha: password }),
-        credentials: 'include'
+      const response = await api.post('/auth/login', {
+        email,
+        senha: password
       });
       
       console.log("Status da resposta:", response.status);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erro no servidor:", errorText);
-        throw new Error(`Erro ${response.status}: ${errorText}`);
+      if (response.status !== 200) {
+        throw new Error(`Erro ${response.status}: ${response.data.error || 'Erro desconhecido'}`);
       }
       
-      const data = await response.json();
-      console.log("Resposta de login:", data);
+      const { user: userData, access_token } = response.data;
       
-      if (!data.user) {
+      if (!userData) {
         throw new Error("Dados do usuário não retornados");
       }
       
-      // Salvar os dados do usuário no localStorage para persistência
-      localStorage.setItem("userData", JSON.stringify(data.user));
+      // Salvar o token e os dados do usuário
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("userData", JSON.stringify(userData));
+      
+      // Configurar o token no axios para futuras requisições
+      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
       // Atualizar o estado do usuário
-      setUser(data.user);
+      setUser(userData);
     } catch (error) {
       console.error("Erro detalhado ao fazer login:", error);
       throw error;
@@ -120,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função de logout
   const logout = () => {
     localStorage.removeItem("userData");
+    localStorage.removeItem("access_token");
+    delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
