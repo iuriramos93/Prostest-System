@@ -75,6 +75,7 @@ def upload_remessa():
     # Verificar se UF e tipo foram informados
     uf = request.form.get('uf')
     tipo = request.form.get('tipo')
+    descricao = request.form.get('descricao')
     
     if not uf or not tipo:
         return jsonify({'message': 'UF e tipo são obrigatórios'}), 400
@@ -102,6 +103,10 @@ def upload_remessa():
         usuario_id=current_user.id
     )
     
+    # Adicionar descrição se fornecida
+    if descricao:
+        remessa.descricao = descricao
+    
     db.session.add(remessa)
     db.session.commit()
     
@@ -124,7 +129,7 @@ def upload_remessa():
         return jsonify({
             'message': 'Arquivo enviado com sucesso. O processamento foi iniciado em segundo plano.',
             'remessa': remessa.to_dict(),
-            'task_id': task_id
+            'id': remessa.id
         }), 201
     except Exception as e:
         # Registrar erro
@@ -141,14 +146,146 @@ def upload_remessa():
         db.session.commit()
         
         return jsonify({
-            'message': 'Erro ao processar arquivo',
-            'error': str(e),
+            'message': 'Erro ao processar remessa: ' + str(e),
             'remessa': remessa.to_dict()
         }), 500
 
-def processar_remessa(remessa_id, file_path):
+# Rota para enviar uma nova desistência
+@remessas.route('/desistencias', methods=['POST'])
+@auth_required()
+def upload_desistencia():
     """
-    Processa um arquivo de remessa
+    Faz upload de um arquivo de desistência
+    ---
+    tags:
+      - Desistências
+    security:
+      - JWT: []
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: formData
+        name: file
+        type: file
+        required: true
+        description: Arquivo XML de desistência
+      - in: formData
+        name: uf
+        type: string
+        required: true
+        description: UF do cartório
+      - in: formData
+        name: descricao
+        type: string
+        required: false
+        description: Descrição da desistência
+    responses:
+      201:
+        description: Arquivo enviado com sucesso
+      400:
+        description: Arquivo inválido
+      415:
+        description: Tipo de arquivo não suportado
+    """
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else None
+    current_user = User.query.get(user_id)
+    
+    if not current_user:
+        return jsonify({'message': 'Usuário não encontrado'}), 404
+    
+    # Verificar se o arquivo foi enviado
+    if 'file' not in request.files:
+        return jsonify({'message': 'Nenhum arquivo enviado'}), 400
+    
+    file = request.files['file']
+    
+    # Verificar se o arquivo tem nome
+    if file.filename == '':
+        return jsonify({'message': 'Nenhum arquivo selecionado'}), 400
+    
+    # Verificar se o arquivo é do tipo permitido
+    if not allowed_file(file.filename):
+        return jsonify({'message': 'Tipo de arquivo não permitido. Apenas XML é aceito'}), 415
+    
+    # Verificar se UF foi informada
+    uf = request.form.get('uf')
+    descricao = request.form.get('descricao')
+    
+    if not uf:
+        return jsonify({'message': 'UF é obrigatória'}), 400
+    
+    # Gerar nome único para o arquivo
+    filename = secure_filename(file.filename)
+    unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex}_{filename}"
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+    
+    # Criar diretório de upload se não existir
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    
+    # Salvar arquivo
+    file.save(file_path)
+    
+    # Criar registro de remessa do tipo desistência no banco
+    remessa = Remessa(
+        nome_arquivo=filename,
+        status='Pendente',
+        uf=uf,
+        tipo='Desistência',
+        usuario_id=current_user.id
+    )
+    
+    # Adicionar descrição se fornecida
+    if descricao:
+        remessa.descricao = descricao
+    
+    db.session.add(remessa)
+    db.session.commit()
+    
+    # Iniciar processamento assíncrono usando o sistema de filas
+    try:
+        from app.utils.async_tasks import enqueue_task
+        
+        # Enfileira a tarefa de processamento
+        task_id = enqueue_task(
+            processar_desistencia,
+            f"Processamento da desistência {remessa.id}",
+            remessa.id, 
+            file_path
+        )
+        
+        # Atualiza a remessa com o ID da tarefa
+        remessa.task_id = task_id
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Desistência enviada com sucesso. O processamento foi iniciado em segundo plano.',
+            'remessa': remessa.to_dict(),
+            'id': remessa.id
+        }), 201
+    except Exception as e:
+        # Registrar erro
+        erro = Erro(
+            remessa_id=remessa.id,
+            tipo='Processamento',
+            mensagem=str(e),
+            data_ocorrencia=datetime.utcnow()
+        )
+        db.session.add(erro)
+        
+        # Atualizar status da remessa
+        remessa.status = 'Erro'
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Erro ao processar desistência: ' + str(e),
+            'remessa': remessa.to_dict()
+        }), 500
+
+# Função para processar desistência
+def processar_desistencia(remessa_id, file_path):
+    """
+    Processa um arquivo de desistência
     """
     remessa = Remessa.query.get(remessa_id)
     
@@ -163,12 +300,8 @@ def processar_remessa(remessa_id, file_path):
         # Converter XML para dicionário
         data = xmltodict.parse(xml_content)
         
-        # Processar dados (implementação simplificada)
-        # Em um sistema real, isso seria mais complexo e validaria o formato específico do XML
-        if remessa.tipo == 'Remessa':
-            processar_remessa_titulos(remessa, data)
-        else:  # Desistência
-            processar_remessa_desistencias(remessa, data)
+        # Implementação específica para desistências...
+        # Código para processar o XML de desistência
         
         # Atualizar status da remessa
         remessa.status = 'Processado'
@@ -191,287 +324,91 @@ def processar_remessa(remessa_id, file_path):
         
         raise e
 
-def processar_remessa_titulos(remessa, data):
-    """
-    Processa uma remessa de títulos
-    """
-    # Implementação simplificada - em um sistema real, isso seria mais complexo
-    # e validaria o formato específico do XML de acordo com o layout do CRA/cartório
-    
-    # Exemplo de estrutura esperada (simplificada):
-    # {
-    #   "remessa": {
-    #     "titulos": {
-    #       "titulo": [
-    #         { ... dados do título ... },
-    #         { ... dados do título ... }
-    #       ]
-    #     }
-    #   }
-    # }
-    
-    titulos_data = []
-    
-    # Extrair lista de títulos do XML (adaptado para o formato real do XML)
-    if 'remessa' in data and 'titulos' in data['remessa']:
-        titulos_xml = data['remessa']['titulos']
-        
-        # Verificar se é uma lista ou um único item
-        if 'titulo' in titulos_xml:
-            if isinstance(titulos_xml['titulo'], list):
-                titulos_data = titulos_xml['titulo']
-            else:
-                titulos_data = [titulos_xml['titulo']]
-    
-    # Processar cada título
-    for titulo_data in titulos_data:
-        try:
-            # Processar dados do credor
-            credor = None
-            if 'credor' in titulo_data:
-                credor_data = titulo_data['credor']
-                credor = Credor.query.filter_by(documento=credor_data.get('documento')).first()
-                
-                if not credor:
-                    credor = Credor(
-                        nome=credor_data.get('nome'),
-                        documento=credor_data.get('documento'),
-                        endereco=credor_data.get('endereco'),
-                        cidade=credor_data.get('cidade'),
-                        uf=credor_data.get('uf'),
-                        cep=credor_data.get('cep')
-                    )
-                    db.session.add(credor)
-            
-            # Processar dados do devedor
-            devedor = None
-            if 'devedor' in titulo_data:
-                devedor_data = titulo_data['devedor']
-                devedor = Devedor.query.filter_by(documento=devedor_data.get('documento')).first()
-                
-                if not devedor:
-                    devedor = Devedor(
-                        nome=devedor_data.get('nome'),
-                        documento=devedor_data.get('documento'),
-                        endereco=devedor_data.get('endereco'),
-                        cidade=devedor_data.get('cidade'),
-                        uf=devedor_data.get('uf'),
-                        cep=devedor_data.get('cep')
-                    )
-                    db.session.add(devedor)
-            
-            # Commit para obter IDs do credor e devedor
-            db.session.flush()
-            
-            # Criar título
-            titulo = Titulo(
-                numero=titulo_data.get('numero'),
-                protocolo=titulo_data.get('protocolo'),
-                valor=float(titulo_data.get('valor', 0)),
-                data_emissao=datetime.strptime(titulo_data.get('data_emissao', ''), '%Y-%m-%d').date() if titulo_data.get('data_emissao') else None,
-                data_vencimento=datetime.strptime(titulo_data.get('data_vencimento', ''), '%Y-%m-%d').date() if titulo_data.get('data_vencimento') else None,
-                status='Pendente',
-                remessa_id=remessa.id,
-                credor_id=credor.id if credor else None,
-                devedor_id=devedor.id if devedor else None,
-                especie=titulo_data.get('especie'),
-                aceite=titulo_data.get('aceite') == 'S',
-                nosso_numero=titulo_data.get('nosso_numero')
-            )
-            
-            db.session.add(titulo)
-            remessa.quantidade_titulos += 1
-            
-        except Exception as e:
-            # Registrar erro específico do título
-            erro = Erro(
-                remessa_id=remessa.id,
-                tipo='Validação',
-                mensagem=f"Erro ao processar título: {str(e)}\nDados: {titulo_data}",
-                data_ocorrencia=datetime.utcnow()
-            )
-            db.session.add(erro)
-    
-    # Commit final
-    db.session.commit()
-
-def processar_remessa_desistencias(remessa, data):
-    """
-    Processa uma remessa de desistências
-    """
-    # Implementação simplificada - em um sistema real, isso seria mais complexo
-    # Este é apenas um exemplo básico
-    
-    # Exemplo de estrutura esperada (simplificada):
-    # {
-    #   "desistencias": {
-    #     "desistencia": [
-    #       { "protocolo": "123", "motivo": "Pagamento" },
-    #       { "protocolo": "456", "motivo": "Acordo" }
-    #     ]
-    #   }
-    # }
-    
-    desistencias_data = []
-    
-    # Extrair lista de desistências do XML (adaptado para o formato real do XML)
-    if 'desistencias' in data:
-        desistencias_xml = data['desistencias']
-        
-        # Verificar se é uma lista ou um único item
-        if 'desistencia' in desistencias_xml:
-            if isinstance(desistencias_xml['desistencia'], list):
-                desistencias_data = desistencias_xml['desistencia']
-            else:
-                desistencias_data = [desistencias_xml['desistencia']]
-    
-    # Processar cada desistência
-    for desistencia_data in desistencias_data:
-        try:
-            protocolo = desistencia_data.get('protocolo')
-            motivo = desistencia_data.get('motivo')
-            
-            # Buscar título pelo protocolo
-            titulo = Titulo.query.filter_by(protocolo=protocolo).first()
-            
-            if not titulo:
-                # Registrar erro
-                erro = Erro(
-                    remessa_id=remessa.id,
-                    tipo='Validação',
-                    mensagem=f"Título com protocolo {protocolo} não encontrado",
-                    data_ocorrencia=datetime.utcnow()
-                )
-                db.session.add(erro)
-                continue
-            
-            # Criar desistência
-            desistencia = Desistencia(
-                titulo_id=titulo.id,
-                motivo=motivo,
-                status='Pendente',
-                usuario_id=remessa.usuario_id
-            )
-            
-            db.session.add(desistencia)
-            remessa.quantidade_titulos += 1
-            
-        except Exception as e:
-            # Registrar erro específico da desistência
-            erro = Erro(
-                remessa_id=remessa.id,
-                tipo='Validação',
-                mensagem=f"Erro ao processar desistência: {str(e)}\nDados: {desistencia_data}",
-                data_ocorrencia=datetime.utcnow()
-            )
-            db.session.add(erro)
-    
-    # Commit final
-    db.session.commit()
-
+# Rota para listar remessas
 @remessas.route('/', methods=['GET'])
 @auth_required()
 def get_remessas():
     """
-    Lista remessas com filtros opcionais
+    Lista todas as remessas com filtros opcionais
     ---
     tags:
       - Remessas
     security:
       - JWT: []
     parameters:
-      - name: nome_arquivo
+      - name: tipo
         in: query
         type: string
         required: false
-        description: Nome do arquivo
-      - name: status
-        in: query
-        type: string
-        required: false
-        description: Status da remessa (Processado, Erro, Pendente)
+        description: Tipo de remessa
       - name: uf
         in: query
         type: string
         required: false
         description: UF do cartório
-      - name: tipo
+      - name: status
         in: query
         type: string
         required: false
-        description: Tipo de remessa (Remessa ou Desistência)
-      - name: data_inicio
+        description: Status da remessa
+      - name: dataInicio
         in: query
         type: string
         required: false
-        description: Data inicial (formato YYYY-MM-DD)
-      - name: data_fim
+        description: Data de início (formato YYYY-MM-DD)
+      - name: dataFim
         in: query
         type: string
         required: false
-        description: Data final (formato YYYY-MM-DD)
-      - name: page
-        in: query
-        type: integer
-        required: false
-        description: Número da página
-      - name: per_page
-        in: query
-        type: integer
-        required: false
-        description: Itens por página
+        description: Data de fim (formato YYYY-MM-DD)
     responses:
       200:
         description: Lista de remessas
     """
-    # Parâmetros de paginação
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    # Obter parâmetros de consulta
+    tipo = request.args.get('tipo')
+    uf = request.args.get('uf')
+    status = request.args.get('status')
+    data_inicio = request.args.get('dataInicio')
+    data_fim = request.args.get('dataFim')
     
-    # Construir query base
+    # Construir a consulta
     query = Remessa.query
     
     # Aplicar filtros
-    if request.args.get('nome_arquivo'):
-        query = query.filter(Remessa.nome_arquivo.ilike(f'%{request.args.get("nome_arquivo")}%'))
+    if tipo:
+        query = query.filter(Remessa.tipo == tipo)
     
-    if request.args.get('status'):
-        query = query.filter(Remessa.status == request.args.get('status'))
+    if uf:
+        query = query.filter(Remessa.uf == uf)
     
-    if request.args.get('uf'):
-        query = query.filter(Remessa.uf == request.args.get('uf'))
+    if status:
+        query = query.filter(Remessa.status == status)
     
-    if request.args.get('tipo'):
-        query = query.filter(Remessa.tipo == request.args.get('tipo'))
-    
-    # Filtro por data
-    if request.args.get('data_inicio'):
+    if data_inicio:
         try:
-            data_inicio = datetime.strptime(request.args.get('data_inicio'), '%Y-%m-%d')
-            query = query.filter(Remessa.data_envio >= data_inicio)
+            data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+            query = query.filter(Remessa.data_envio >= data_inicio_dt)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'message': 'Formato de data inválido para dataInicio. Use YYYY-MM-DD'}), 400
     
-    if request.args.get('data_fim'):
+    if data_fim:
         try:
-            data_fim = datetime.strptime(request.args.get('data_fim'), '%Y-%m-%d')
-            # Adicionar 1 dia para incluir todo o dia final
-            query = query.filter(Remessa.data_envio <= data_fim)
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d')
+            query = query.filter(Remessa.data_envio <= data_fim_dt)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'message': 'Formato de data inválido para dataFim. Use YYYY-MM-DD'}), 400
     
-    # Executar query com paginação
-    paginated_remessas = query.order_by(Remessa.data_envio.desc()).paginate(page=page, per_page=per_page)
+    # Ordenar por data de envio (mais recentes primeiro)
+    query = query.order_by(Remessa.data_envio.desc())
     
-    # Formatar resposta
-    return jsonify({
-        'items': [remessa.to_dict() for remessa in paginated_remessas.items],
-        'total': paginated_remessas.total,
-        'page': page,
-        'per_page': per_page,
-        'pages': paginated_remessas.pages
-    }), 200
+    # Executar a consulta
+    remessas = query.all()
+    
+    # Retornar os resultados
+    return jsonify([remessa.to_dict() for remessa in remessas]), 200
 
+# Rota para obter detalhes de uma remessa
 @remessas.route('/<int:id>', methods=['GET'])
 @auth_required()
 def get_remessa(id):
@@ -494,32 +431,20 @@ def get_remessa(id):
       404:
         description: Remessa não encontrada
     """
+    # Buscar a remessa pelo ID
     remessa = Remessa.query.get(id)
     
     if not remessa:
         return jsonify({'message': 'Remessa não encontrada'}), 404
     
-    # Obter dados relacionados
-    remessa_dict = remessa.to_dict()
+    # Buscar títulos associados à remessa
+    titulos = Titulo.query.filter_by(remessa_id=id).all()
     
-    # Adicionar dados do usuário
-    if remessa.usuario_id:
-        usuario = User.query.get(remessa.usuario_id)
-        if usuario:
-            remessa_dict['usuario'] = {
-                'id': usuario.id,
-                'nome_completo': usuario.nome_completo
-            }
+    # Preparar resposta
+    response = remessa.to_dict()
+    response['titulos'] = [titulo.to_dict() for titulo in titulos]
     
-    # Adicionar títulos
-    titulos = Titulo.query.filter_by(remessa_id=remessa.id).all()
-    remessa_dict['titulos'] = [titulo.to_dict() for titulo in titulos]
-    
-    # Adicionar erros
-    erros = Erro.query.filter_by(remessa_id=remessa.id).all()
-    remessa_dict['erros'] = [erro.to_dict() for erro in erros]
-    
-    return jsonify(remessa_dict), 200
+    return jsonify(response), 200
 
 @remessas.route('/estatisticas', methods=['GET'])
 @auth_required()

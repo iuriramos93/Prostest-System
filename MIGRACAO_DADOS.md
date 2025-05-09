@@ -1,250 +1,143 @@
-# Plano de Migração de Dados para o Sistema de Protesto
+# Migração de Dados do Backend Node.js para Flask
 
-Este documento descreve o processo de migração de dados de sistemas legados para o Sistema de Protesto.
-
-## Índice
-
-1. [Visão Geral](#visão-geral)
-2. [Pré-requisitos](#pré-requisitos)
-3. [Etapas da Migração](#etapas-da-migração)
-4. [Mapeamento de Dados](#mapeamento-de-dados)
-5. [Scripts de Migração](#scripts-de-migração)
-6. [Validação e Verificação](#validação-e-verificação)
-7. [Rollback](#rollback)
-8. [Cronograma](#cronograma)
+Este documento fornece instruções detalhadas sobre como migrar os dados do backend Node.js para o backend Flask do Sistema de Protesto.
 
 ## Visão Geral
 
-A migração de dados é um processo crítico para garantir a continuidade das operações ao migrar de sistemas legados para o novo Sistema de Protesto. Este documento fornece um guia detalhado para realizar essa migração de forma segura e eficiente.
+O processo de migração envolve:
+
+1. Extrair dados do banco de dados PostgreSQL usado pelo servidor Node.js
+2. Transformar os dados para o formato esperado pelo servidor Flask
+3. Carregar os dados no banco de dados usado pelo servidor Flask
 
 ## Pré-requisitos
 
-### Ambiente
+- Docker e Docker Compose instalados
+- Python 3.9+ instalado
+- Acesso ao banco de dados PostgreSQL usado pelo servidor Node.js
 
-- Sistema de Protesto instalado e configurado
-- Acesso ao banco de dados do sistema legado
-- Permissões adequadas para leitura/escrita em ambos os sistemas
-- Espaço em disco suficiente para backups e arquivos temporários
+## Preparação do Ambiente
 
-### Ferramentas
-
-- Scripts de migração Python (disponíveis em `/backend/app/scripts/migracao/`)
-- Utilitários de exportação do banco de dados legado
-- Ferramentas de validação de dados
-
-## Etapas da Migração
-
-### 1. Análise e Planejamento
-
-- Identificar todas as entidades de dados no sistema legado
-- Mapear entidades para o esquema do novo sistema
-- Identificar transformações necessárias
-- Definir ordem de migração considerando dependências entre entidades
-
-### 2. Extração de Dados
-
-- Exportar dados do sistema legado em formato CSV ou SQL
-- Documentar a estrutura dos dados exportados
-- Verificar integridade dos arquivos exportados
-
-### 3. Transformação
-
-- Limpar dados (remover duplicatas, corrigir inconsistências)
-- Converter formatos de dados conforme necessário
-- Aplicar regras de negócio para adequação ao novo sistema
-
-### 4. Carregamento
-
-- Carregar dados no banco de dados do novo sistema
-- Seguir a ordem definida no planejamento
-- Registrar logs detalhados do processo
-
-### 5. Validação
-
-- Verificar contagens de registros
-- Validar integridade referencial
-- Executar testes funcionais com os dados migrados
-
-## Mapeamento de Dados
-
-### Entidades Principais
-
-| Sistema Legado | Sistema Novo | Transformações Necessárias |
-|----------------|--------------|----------------------------|
-| Titulos        | Titulo       | Normalizar status, ajustar formatos de data |
-| Devedores      | Devedor      | Validar documentos, normalizar endereços |
-| Credores       | Credor       | Validar documentos, normalizar razão social |
-| Protestos      | Titulo (status=Protestado) | Consolidar informações de protesto |
-| Usuarios       | User         | Converter senhas para formato bcrypt |
-| Remessas       | Remessa      | Ajustar metadados e relacionamentos |
-
-### Campos Específicos
-
-Para cada entidade, os campos devem ser mapeados individualmente. Exemplo para a entidade Título:
-
-| Campo Legado | Campo Novo | Transformação |
-|--------------|------------|---------------|
-| num_titulo   | numero     | Direto |
-| valor        | valor      | Converter para decimal |
-| dt_emissao   | data_emissao | Converter formato de data |
-| dt_vencimento | data_vencimento | Converter formato de data |
-| situacao     | status     | Mapear valores (ex: 'P' → 'Protestado') |
-| id_devedor   | devedor_id | Relacionamento |
-| id_credor    | credor_id  | Relacionamento |
-
-## Scripts de Migração
-
-Os scripts de migração estão localizados em `/backend/app/scripts/migracao/` e incluem:
-
-### 1. Exportadores
-
-- `exportar_sistema_legado.py`: Conecta ao sistema legado e exporta dados em formato CSV
-
-### 2. Transformadores
-
-- `transformar_titulos.py`: Aplica transformações aos dados de títulos
-- `transformar_devedores.py`: Aplica transformações aos dados de devedores
-- `transformar_credores.py`: Aplica transformações aos dados de credores
-- `transformar_usuarios.py`: Aplica transformações aos dados de usuários
-
-### 3. Importadores
-
-- `importar_devedores.py`: Importa devedores para o novo sistema
-- `importar_credores.py`: Importa credores para o novo sistema
-- `importar_titulos.py`: Importa títulos para o novo sistema
-- `importar_usuarios.py`: Importa usuários para o novo sistema
-
-### 4. Validadores
-
-- `validar_migracao.py`: Verifica a integridade dos dados migrados
-
-### Exemplo de Uso
+### 1. Configurar Ambiente Virtual Python
 
 ```bash
-# Exportar dados do sistema legado
-python -m app.scripts.migracao.exportar_sistema_legado --config=config/legado.json --output=dados_exportados/
-
-# Transformar dados
-python -m app.scripts.migracao.transformar_titulos --input=dados_exportados/titulos.csv --output=dados_transformados/titulos.csv
-
-# Importar dados
-python -m app.scripts.migracao.importar_devedores --input=dados_transformados/devedores.csv
-python -m app.scripts.migracao.importar_credores --input=dados_transformados/credores.csv
-python -m app.scripts.migracao.importar_titulos --input=dados_transformados/titulos.csv
-
-# Validar migração
-python -m app.scripts.migracao.validar_migracao --config=config/validacao.json
+cd backend
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-## Validação e Verificação
+### 2. Verificar Conexão com o Banco de Dados
 
-### Verificações Quantitativas
+Edite o arquivo `backend/scripts/migrate_js_to_flask.py` e verifique se as configurações de conexão com o banco de dados estão corretas:
 
-- Contagem de registros em cada tabela
-- Somas de controle (ex: total de valores de títulos)
-- Verificação de registros órfãos
-
-### Verificações Qualitativas
-
-- Amostragem de registros para verificação manual
-- Validação de regras de negócio
-- Testes funcionais com dados migrados
-
-### Relatórios de Validação
-
-O script `validar_migracao.py` gera relatórios detalhados incluindo:
-
-- Resumo da migração (contagens, status)
-- Lista de problemas encontrados
-- Recomendações para correção
-
-## Rollback
-
-### Plano de Rollback
-
-Em caso de problemas graves durante a migração, o seguinte plano de rollback deve ser seguido:
-
-1. Interromper todos os processos de migração
-2. Restaurar backup do banco de dados do novo sistema
-3. Documentar os problemas encontrados
-4. Corrigir os scripts de migração
-5. Reiniciar o processo após correções
-
-### Backups
-
-Antes de iniciar a migração, os seguintes backups devem ser realizados:
-
-- Backup completo do banco de dados do sistema legado
-- Backup completo do banco de dados do novo sistema (se já contiver dados)
-- Backup dos arquivos exportados em cada etapa
-
-## Cronograma
-
-| Etapa | Duração Estimada | Dependências |
-|-------|------------------|-------------|
-| Análise e Planejamento | 1 semana | - |
-| Desenvolvimento de Scripts | 2 semanas | Análise e Planejamento |
-| Migração de Teste | 3 dias | Desenvolvimento de Scripts |
-| Validação da Migração de Teste | 2 dias | Migração de Teste |
-| Correções e Ajustes | 1 semana | Validação da Migração de Teste |
-| Migração Final | 1-2 dias | Correções e Ajustes |
-| Validação Final | 2 dias | Migração Final |
-
-### Janela de Migração
-
-A migração final deve ser realizada durante um período de baixa utilização do sistema, preferencialmente em um final de semana. Um período de indisponibilidade de 24-48 horas deve ser planejado e comunicado a todos os usuários.
-
----
-
-## Apêndices
-
-### A. Consultas SQL para Extração
-
-Exemplos de consultas SQL para extração de dados do sistema legado:
-
-```sql
--- Extração de títulos
-SELECT 
-    id as id_legado,
-    num_titulo,
-    valor,
-    dt_emissao,
-    dt_vencimento,
-    situacao,
-    id_devedor,
-    id_credor
-FROM titulos;
-
--- Extração de devedores
-SELECT 
-    id as id_legado,
-    nome,
-    documento,
-    endereco,
-    cidade,
-    uf,
-    cep
-FROM devedores;
+```python
+# Configurações de conexão - ajuste conforme necessário
+conn = psycopg2.connect(
+    host="127.0.0.1",
+    database="protest_system",
+    user="protest_app",
+    password="senha_segura",
+    port=5432
+)
 ```
 
-### B. Mapeamento de Códigos de Status
+## Processo de Migração
 
-| Código Legado | Descrição Legado | Status Novo |
-|---------------|------------------|-------------|
-| P | Protestado | Protestado |
-| A | Aguardando | Pendente |
-| C | Cancelado | Cancelado |
-| L | Liquidado | Pago |
-| D | Devolvido | Devolvido |
+### 1. Criar Migração para o Campo Descrição
 
-### C. Tratamento de Exceções
+O modelo `Remessa` no servidor Flask precisa do campo `descricao` para compatibilidade com o modelo do servidor Node.js.
 
-Procedimentos para lidar com casos especiais durante a migração:
+```bash
+cd backend
+python scripts/create_migration.py
+```
 
-1. Registros duplicados: Identificar por chaves naturais e manter apenas o mais recente
-2. Dados inválidos: Corrigir manualmente ou aplicar valores padrão
-3. Relacionamentos quebrados: Criar entidades temporárias ou marcar para revisão manual
+### 2. Aplicar a Migração
 
----
+```bash
+cd backend
+python scripts/apply_migration.py
+```
 
-Este plano de migração deve ser revisado e aprovado por todas as partes interessadas antes do início do processo de migração. Quaisquer alterações devem ser documentadas e comunicadas adequadamente.
+### 3. Executar o Script de Migração de Dados
+
+```bash
+cd backend
+python scripts/migrate_js_to_flask.py
+```
+
+Este script:
+- Conecta-se ao banco de dados do Node.js
+- Lê os dados das tabelas relevantes
+- Mapeia os dados para os modelos do Flask
+- Insere os dados no banco de dados do Flask
+
+## Verificação da Migração
+
+### 1. Verificar Contagem de Registros
+
+Você pode verificar se a quantidade de registros foi migrada corretamente usando os seguintes comandos:
+
+```bash
+# No banco de dados do Node.js
+psql -h 127.0.0.1 -U protest_app -d protest_system -c "SELECT COUNT(*) FROM remessas"
+psql -h 127.0.0.1 -U protest_app -d protest_system -c "SELECT COUNT(*) FROM titulos"
+
+# No banco de dados do Flask (após iniciar os containers)
+docker-compose exec api python -c "from app import create_app, db; from app.models import Remessa, Titulo; app = create_app(); with app.app_context(): print(f'Remessas: {Remessa.query.count()}'); print(f'Titulos: {Titulo.query.count()}')"
+```
+
+### 2. Verificar Integridade dos Dados
+
+Você pode verificar a integridade dos dados migrados acessando a API Flask:
+
+```bash
+# Verificar remessas
+curl http://localhost:5000/api/remessas
+
+# Verificar títulos
+curl http://localhost:5000/api/titulos
+```
+
+## Resolução de Problemas
+
+### Problema: Erro de Conexão com o Banco de Dados
+
+Se você encontrar erros de conexão com o banco de dados, verifique:
+
+1. Se o PostgreSQL está em execução
+2. Se as credenciais de conexão estão corretas
+3. Se o banco de dados existe
+
+### Problema: Erro de Mapeamento de Dados
+
+Se você encontrar erros relacionados ao mapeamento de dados, verifique:
+
+1. A estrutura das tabelas no banco de dados do Node.js
+2. Os modelos no servidor Flask
+3. A lógica de mapeamento no script de migração
+
+### Problema: Dados Duplicados
+
+Se você encontrar dados duplicados após a migração:
+
+1. Limpe o banco de dados do Flask antes de executar a migração novamente:
+
+```bash
+docker-compose exec api python -c "from app import create_app, db; app = create_app(); with app.app_context(): db.drop_all(); db.create_all()"
+```
+
+2. Execute o script de migração novamente
+
+## Considerações Finais
+
+- A migração de dados é um processo delicado e pode exigir ajustes específicos dependendo da estrutura e quantidade de dados.
+- Sempre faça backup dos dados antes de iniciar o processo de migração.
+- Considere executar a migração em um ambiente de teste antes de aplicar em produção.
+
+## Referências
+
+- [Documentação do SQLAlchemy](https://docs.sqlalchemy.org/)
+- [Documentação do Flask-Migrate](https://flask-migrate.readthedocs.io/)
+- [Documentação do psycopg2](https://www.psycopg.org/docs/)

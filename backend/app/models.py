@@ -108,6 +108,7 @@ class Remessa(db.Model):
     data_envio = db.Column(db.DateTime, default=datetime.utcnow)
     quantidade_titulos = db.Column(db.Integer, default=0)
     task_id = db.Column(db.String(50), nullable=True)  # ID da tarefa assíncrona
+    descricao = db.Column(db.Text, nullable=True)  # Descrição da remessa
     
     # Relacionamentos
     usuario_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -130,7 +131,8 @@ class Remessa(db.Model):
             'usuario_id': self.usuario_id,
             'data_processamento': self.data_processamento.isoformat() if self.data_processamento else None,
             'titulos_count': self.titulos.count(),
-            'erros_count': self.erros.count()
+            'erros_count': self.erros.count(),
+            'descricao': self.descricao
         }
 
 class Credor(db.Model):

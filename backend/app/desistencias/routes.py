@@ -1,150 +1,81 @@
 from datetime import datetime
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from app.auth.middleware import auth_required, get_current_user
 from sqlalchemy import or_, and_
 from app import db
-from app.models import Desistencia, Titulo, User, Devedor
+from app.models import Desistencia, Titulo, User, Devedor, Erro
 from . import desistencias
 
 @desistencias.route('/', methods=['GET'])
 @auth_required()
 def get_desistencias():
     """
-    Lista solicitações de desistência com filtros opcionais
+    Lista todas as desistências com filtros opcionais
     ---
     tags:
       - Desistências
     security:
       - JWT: []
     parameters:
-      - name: numeroTitulo
-        in: query
-        type: string
-        required: false
-        description: Número do título
-      - name: protocolo
-        in: query
-        type: string
-        required: false
-        description: Protocolo do título
-      - name: dataInicial
-        in: query
-        type: string
-        required: false
-        description: Data inicial (formato YYYY-MM-DD)
-      - name: dataFinal
-        in: query
-        type: string
-        required: false
-        description: Data final (formato YYYY-MM-DD)
       - name: status
         in: query
         type: string
         required: false
-        description: Status da desistência (PENDENTE, APROVADA, REJEITADA)
-      - name: page
+        description: Status da desistência (Aprovada, Pendente, Rejeitada)
+      - name: dataInicio
         in: query
-        type: integer
+        type: string
         required: false
-        description: Número da página
-      - name: per_page
+        description: Data de início (formato YYYY-MM-DD)
+      - name: dataFim
         in: query
-        type: integer
+        type: string
         required: false
-        description: Itens por página
+        description: Data de fim (formato YYYY-MM-DD)
     responses:
       200:
         description: Lista de desistências
     """
-    # Parâmetros de paginação
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    # Obter parâmetros de consulta
+    status = request.args.get('status')
+    data_inicio = request.args.get('dataInicio')
+    data_fim = request.args.get('dataFim')
     
-    # Construir query base
-    query = Desistencia.query.join(Titulo)
+    # Construir a consulta
+    query = Desistencia.query
     
     # Aplicar filtros
-    if request.args.get('status'):
-        status_map = {
-            'PENDENTE': 'Pendente',
-            'APROVADA': 'Aprovada',
-            'REJEITADA': 'Rejeitada'
-        }
-        status = status_map.get(request.args.get('status'))
-        if status:
-            query = query.filter(Desistencia.status == status)
+    if status:
+        query = query.filter(Desistencia.status == status)
     
-    if request.args.get('numeroTitulo'):
-        query = query.filter(Titulo.numero.like(f'%{request.args.get("numeroTitulo")}%'))
-    
-    if request.args.get('protocolo'):
-        query = query.filter(Titulo.protocolo.like(f'%{request.args.get("protocolo")}%'))
-    
-    # Filtro por data
-    if request.args.get('dataInicial'):
+    if data_inicio:
         try:
-            data_inicio = datetime.strptime(request.args.get('dataInicial'), '%Y-%m-%d')
-            query = query.filter(Desistencia.data_solicitacao >= data_inicio)
+            data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+            query = query.filter(Desistencia.data_solicitacao >= data_inicio_dt)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'message': 'Formato de data inválido para dataInicio. Use YYYY-MM-DD'}), 400
     
-    if request.args.get('dataFinal'):
+    if data_fim:
         try:
-            data_fim = datetime.strptime(request.args.get('dataFinal'), '%Y-%m-%d')
-            # Adicionar 1 dia para incluir todo o dia final
-            query = query.filter(Desistencia.data_solicitacao <= data_fim)
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d')
+            query = query.filter(Desistencia.data_solicitacao <= data_fim_dt)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'message': 'Formato de data inválido para dataFim. Use YYYY-MM-DD'}), 400
     
-    # Executar query com paginação
-    paginated_desistencias = query.order_by(Desistencia.data_solicitacao.desc()).paginate(page=page, per_page=per_page)
+    # Ordenar por data de solicitação (mais recentes primeiro)
+    query = query.order_by(Desistencia.data_solicitacao.desc())
     
-    # Formatar resposta
-    items = []
-    for desistencia in paginated_desistencias.items:
-        item = {
-            'id': str(desistencia.id),
-            'numeroTitulo': desistencia.titulo.numero if desistencia.titulo else '',
-            'protocolo': desistencia.titulo.protocolo if desistencia.titulo else '',
-            'devedor': desistencia.titulo.devedor.nome if desistencia.titulo and desistencia.titulo.devedor else '',
-            'valor': float(desistencia.titulo.valor) if desistencia.titulo and desistencia.titulo.valor else 0,
-            'dataProtocolo': desistencia.titulo.data_protesto.isoformat() if desistencia.titulo and desistencia.titulo.data_protesto else None,
-            'dataSolicitacao': desistencia.data_solicitacao.isoformat() if desistencia.data_solicitacao else None,
-            'motivo': desistencia.motivo,
-            'observacoes': desistencia.observacoes,
-            'status': desistencia.status.upper() if desistencia.status else 'PENDENTE'
-        }
-        
-        # Adicionar dados do devedor
-        if desistencia.titulo.devedor:
-            item['devedor'] = {
-                'id': desistencia.titulo.devedor.id,
-                'nome': desistencia.titulo.devedor.nome,
-                'documento': desistencia.titulo.devedor.documento
-            }
-        
-        # Adicionar dados do usuário solicitante
-        if desistencia.usuario:
-            item['usuario'] = {
-                'id': desistencia.usuario.id,
-                'nome_completo': desistencia.usuario.nome_completo
-            }
-        
-        items.append(item)
+    # Executar a consulta
+    desistencias_list = query.all()
     
-    return jsonify({
-        'items': items,
-        'total': paginated_desistencias.total,
-        'page': page,
-        'per_page': per_page,
-        'pages': paginated_desistencias.pages
-    }), 200
+    # Retornar os resultados
+    return jsonify([desistencia.to_dict() for desistencia in desistencias_list]), 200
 
 @desistencias.route('/<int:id>', methods=['GET'])
 @auth_required()
 def get_desistencia(id):
     """
-    Obtém detalhes de uma solicitação de desistência específica
+    Obtém detalhes de uma desistência específica
     ---
     tags:
       - Desistências
@@ -162,43 +93,21 @@ def get_desistencia(id):
       404:
         description: Desistência não encontrada
     """
+    # Buscar a desistência pelo ID
     desistencia = Desistencia.query.get(id)
     
     if not desistencia:
         return jsonify({'message': 'Desistência não encontrada'}), 404
     
-    # Obter dados relacionados
-    desistencia_dict = desistencia.to_dict()
+    # Buscar título associado à desistência
+    titulo = Titulo.query.get(desistencia.titulo_id)
     
-    # Adicionar dados do título
-    if desistencia.titulo:
-        desistencia_dict['titulo'] = desistencia.titulo.to_dict()
-        
-        # Adicionar dados do devedor
-        if desistencia.titulo.devedor:
-            desistencia_dict['devedor'] = desistencia.titulo.devedor.to_dict()
-        
-        # Adicionar dados do credor
-        if desistencia.titulo.credor:
-            desistencia_dict['credor'] = desistencia.titulo.credor.to_dict()
+    # Preparar resposta
+    response = desistencia.to_dict()
+    if titulo:
+        response['titulo'] = titulo.to_dict()
     
-    # Adicionar dados do usuário solicitante
-    if desistencia.usuario:
-        desistencia_dict['usuario'] = {
-            'id': desistencia.usuario.id,
-            'nome_completo': desistencia.usuario.nome_completo,
-            'email': desistencia.usuario.email
-        }
-    
-    # Adicionar dados do usuário que processou
-    if desistencia.usuario_processamento:
-        desistencia_dict['usuario_processamento'] = {
-            'id': desistencia.usuario_processamento.id,
-            'nome_completo': desistencia.usuario_processamento.nome_completo,
-            'email': desistencia.usuario_processamento.email
-        }
-    
-    return jsonify(desistencia_dict), 200
+    return jsonify(response), 200
 
 @desistencias.route('/', methods=['POST'])
 @auth_required()
@@ -551,3 +460,113 @@ def get_estatisticas():
         },
         'motivos_comuns': {motivo: total for motivo, total in motivos}
     }), 200
+
+@desistencias.route('/<int:id>/aprovar', methods=['PUT'])
+@auth_required()
+def aprovar_desistencia(id):
+    """
+    Aprova uma desistência
+    ---
+    tags:
+      - Desistências
+    security:
+      - JWT: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID da desistência
+    responses:
+      200:
+        description: Desistência aprovada
+      404:
+        description: Desistência não encontrada
+      400:
+        description: Desistência não pode ser aprovada
+    """
+    # Buscar a desistência pelo ID
+    desistencia = Desistencia.query.get(id)
+    
+    if not desistencia:
+        return jsonify({'message': 'Desistência não encontrada'}), 404
+    
+    # Verificar se a desistência já foi processada
+    if desistencia.status != 'Pendente':
+        return jsonify({'message': f'Desistência não pode ser aprovada. Status atual: {desistencia.status}'}), 400
+    
+    current_user = get_current_user()
+    
+    # Atualizar a desistência
+    desistencia.status = 'Aprovada'
+    desistencia.data_processamento = datetime.utcnow()
+    desistencia.usuario_processamento_id = current_user.id if current_user else None
+    
+    # Atualizar o título associado
+    titulo = Titulo.query.get(desistencia.titulo_id)
+    if titulo:
+        titulo.status = 'Desistido'
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Desistência aprovada com sucesso', 'desistencia': desistencia.to_dict()}), 200
+
+@desistencias.route('/<int:id>/rejeitar', methods=['PUT'])
+@auth_required()
+def rejeitar_desistencia(id):
+    """
+    Rejeita uma desistência
+    ---
+    tags:
+      - Desistências
+    security:
+      - JWT: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID da desistência
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            motivo:
+              type: string
+              description: Motivo da rejeição
+    responses:
+      200:
+        description: Desistência rejeitada
+      404:
+        description: Desistência não encontrada
+      400:
+        description: Desistência não pode ser rejeitada
+    """
+    # Buscar a desistência pelo ID
+    desistencia = Desistencia.query.get(id)
+    
+    if not desistencia:
+        return jsonify({'message': 'Desistência não encontrada'}), 404
+    
+    # Verificar se a desistência já foi processada
+    if desistencia.status != 'Pendente':
+        return jsonify({'message': f'Desistência não pode ser rejeitada. Status atual: {desistencia.status}'}), 400
+    
+    # Obter dados da requisição
+    data = request.get_json()
+    motivo = data.get('motivo') if data else None
+    
+    current_user = get_current_user()
+    
+    # Atualizar a desistência
+    desistencia.status = 'Rejeitada'
+    desistencia.data_processamento = datetime.utcnow()
+    desistencia.usuario_processamento_id = current_user.id if current_user else None
+    
+    if motivo:
+        desistencia.observacoes = motivo
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Desistência rejeitada com sucesso', 'desistencia': desistencia.to_dict()}), 200
