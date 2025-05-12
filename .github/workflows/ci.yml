@@ -1,139 +1,64 @@
-name: Continuous Integration
+name: CI Docker Build
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ "main", "develop" ] # Adapte para suas branches principais
   pull_request:
-    branches: [ main, develop ]
-  schedule:
-    - cron: '0 0 * * 0'  # Executa todo domingo à meia-noite
+    branches: [ "main", "develop" ]
 
 jobs:
-  frontend:
+  build_docker_images:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Lint
-        run: npm run lint
-        
-      - name: Type check
-        run: npm run type-check
-        
-      - name: Test
-        run: npm test -- --coverage
-        
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage
-          
-      - name: Build
-        run: npm run build
-        
-      - name: Cache build
-        uses: actions/cache@v3
-        with:
-          path: dist
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-  backend:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: protest_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Build Backend Docker image
+        uses: docker/build-push-action@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
-          
-      - name: Install dependencies
-        run: |
-          cd backend
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov flake8 mypy
-          
-      - name: Lint
-        run: |
-          cd backend
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-          
-      - name: Type check
-        run: |
-          cd backend
-          mypy .
-          
-      - name: Test
-        run: |
-          cd backend
-          python -m pytest --cov=app --cov-report=xml
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/protest_test
-          SECRET_KEY: test_secret_key
-          JWT_SECRET_KEY: test_jwt_secret
-          
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+          context: ./backend # Contexto do Dockerfile do backend
+          file: ./backend/Dockerfile
+          push: false # Não faz push para um registry por padrão
+          tags: protestsystem-api:latest # Tag da imagem
+          # Se precisar fazer login em um registry privado (ex: Docker Hub, GHCR):
+          # login-server: docker.io
+          # username: ${{ secrets.DOCKER_USERNAME }}
+          # password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Adicionar etapa de teste para o backend aqui, se houver comandos
+      # - name: Run Backend Tests
+      #   run: |
+      #     echo "Comandos para rodar testes do backend aqui"
+      #     # Exemplo: docker run --rm protestsystem-api:latest pytest
+
+      - name: Build Frontend Docker image
+        uses: docker/build-push-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./backend/coverage.xml
-          
-  sonarqube:
-    needs: [frontend, backend]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          
-      - name: SonarQube Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: .
-          
-  notify:
-    needs: [frontend, backend, sonarqube]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Notify Slack
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        if: always() 
+          context: . # Contexto do Dockerfile do frontend (raiz do projeto)
+          file: ./Dockerfile # Caminho para o Dockerfile do frontend
+          push: false # Não faz push para um registry por padrão
+          tags: protestsystem-frontend:latest # Tag da imagem
+
+      # Adicionar etapa de teste para o frontend aqui, se houver comandos
+      # - name: Run Frontend Tests
+      #   run: |
+      #     echo "Comandos para rodar testes do frontend aqui"
+      #     # Exemplo: docker run --rm protestsystem-frontend:latest npm test
+
+      # Opcional: Se quiser usar docker-compose para subir os serviços e testar a integração
+      # - name: Start services with Docker Compose
+      #   run: docker-compose -f docker-compose.yml up -d
+      #
+      # - name: Run Integration Tests (exemplo)
+      #   run: |
+      #     echo "Comandos para rodar testes de integração aqui"
+      #     # Exemplo: curl http://localhost:5000/api/health
+      #
+      # - name: Stop services
+      #   if: always() # Garante que os serviços sejam parados mesmo se os testes falharem
+      #   run: docker-compose -f docker-compose.yml down
+
+

@@ -28,4 +28,4 @@ COPY scripts/init_db.py /app/scripts/
 RUN chmod +x /app/scripts/init_db.py
 
 # Comando para iniciar a aplicação
-CMD ["sh", "-c", "python scripts/init_db.py && gunicorn --bind 127.0.0.1:5000 --workers 4 --timeout 120 wsgi:app"]
+CMD ["sh", "-c", "python scripts/init_db.py && gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 wsgi:app"]
