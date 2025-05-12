@@ -2,12 +2,10 @@
 Flask==2.3.3
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
-flask-jwt-extended==4.5.2
 Flask-CORS==4.0.0
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.25
 Werkzeug==2.3.7
-PyJWT==2.8.0
 passlib==1.7.4
 python-dotenv==1.0.0
 flasgger==0.9.7.1
@@ -33,3 +31,4 @@ pytest-cov==4.1.0
 flake8==6.1.0
 black==23.11.0
 isort==5.12.0
+

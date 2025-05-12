@@ -89,7 +89,7 @@ Os seguintes arquivos do backend Node.js foram migrados para o backend Flask:
 ## Notas Adicionais
 
 - O backend Flask usa SQLAlchemy como ORM, enquanto o backend Node.js usava consultas SQL diretas.
-- A autenticação no backend Flask é feita usando JWT, assim como no backend Node.js.
+- A autenticação no backend Flask é feita usando Basic Auth. O frontend foi ajustado para enviar credenciais neste formato.
 - As rotas da API Flask seguem o mesmo padrão das rotas da API Node.js, facilitando a integração com o frontend existente.
 
 ## Troubleshooting

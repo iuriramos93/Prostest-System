@@ -12,11 +12,18 @@ export const api = axios.create({
   }
 });
 
-// Interceptor para adicionar token em todas as requisições
+// Interceptor para adicionar o header de Basic Auth em todas as requisições
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const userCredentials = localStorage.getItem("userCredentials"); // Formato "username:password"
+  if (userCredentials) {
+    try {
+      const base64Credentials = btoa(userCredentials); // btoa codifica para Base64
+      config.headers.Authorization = `Basic ${base64Credentials}`;
+    } catch (e) {
+      console.error("Erro ao codificar credenciais para Base64:", e);
+      // Lidar com o erro, talvez limpando as credenciais inválidas
+      localStorage.removeItem("userCredentials");
+    }
   }
   return config;
 });
@@ -29,10 +36,17 @@ api.interceptors.response.use(
       // O servidor respondeu com um status de erro
       console.error('Erro na resposta da API:', error.response.data);
       
-      // Se o token expirou, redirecionar para o login
+      // Se for erro de não autorizado (401), redirecionar para o login
+      // e limpar as credenciais armazenadas, pois podem estar inválidas ou expiradas
       if (error.response.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        localStorage.removeItem('userCredentials'); // Limpar credenciais Basic Auth
+        // Adicionar um pequeno delay antes de redirecionar para garantir que o removeItem conclua
+        // e para evitar loops de redirecionamento em alguns casos.
+        setTimeout(() => {
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }, 100);
       }
     } else if (error.request) {
       // A requisição foi feita mas não houve resposta
@@ -50,7 +64,8 @@ export const remessaService = {
   // Enviar uma nova remessa
   enviarRemessa: async (formData: FormData) => {
     try {
-      const response = await api.post('/api/remessas', formData, {
+      // Alinhado com o backend: POST /api/remessas/upload
+      const response = await api.post('/api/remessas/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -92,7 +107,9 @@ export const desistenciaService = {
   // Enviar uma nova desistência
   enviarDesistencia: async (formData: FormData) => {
     try {
-      const response = await api.post('/api/desistencias', formData, {
+      // Alinhado com a sugestão do plano: POST /api/remessas/desistencias
+      // Nota: Este endpoint pode precisar ser criado ou ajustado no backend.
+      const response = await api.post('/api/remessas/desistencias', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -107,61 +124,16 @@ export const desistenciaService = {
   // Listar desistências
   listarDesistencias: async (filtros?: any) => {
     try {
-      const response = await api.get('/api/desistencias', {
-        params: filtros
+      // Alinhado com a sugestão do plano: GET /api/remessas com filtro tipo=Desistência
+      // Nota: O backend precisa suportar este filtro.
+      const response = await api.get('/api/remessas', {
+        params: { ...filtros, tipo: "Desistência" }
       });
       return response.data;
     } catch (error: any) {
       console.error("Erro ao listar desistências:", error);
-      
-      // Se o servidor não estiver disponível, retornar dados simulados
-      if (error.code === 'ERR_NETWORK') {
-        console.log('Servidor indisponível, usando dados simulados');
-        
-        // Dados simulados para desenvolvimento
-        const dadosSimulados = {
-          items: [
-            {
-              id: '1',
-              numeroTitulo: '12345678',
-              protocolo: 'PROT-001',
-              devedor: 'Empresa ABC Ltda',
-              valor: 1500.75,
-              dataProtocolo: '2023-10-15',
-              dataSolicitacao: '2023-10-20',
-              motivo: 'Pagamento realizado',
-              status: 'PENDENTE'
-            },
-            {
-              id: '2',
-              numeroTitulo: '87654321',
-              protocolo: 'PROT-002',
-              devedor: 'João da Silva',
-              valor: 850.00,
-              dataProtocolo: '2023-09-10',
-              dataSolicitacao: '2023-09-25',
-              motivo: 'Acordo entre as partes',
-              observacoes: 'Cliente entrou em contato',
-              status: 'APROVADA'
-            },
-            {
-              id: '3',
-              numeroTitulo: '45678912',
-              protocolo: 'PROT-003',
-              devedor: 'Comércio XYZ',
-              valor: 3200.50,
-              dataProtocolo: '2023-11-05',
-              dataSolicitacao: '2023-11-10',
-              motivo: 'Título com erro',
-              status: 'REJEITADA'
-            }
-          ],
-          total: 3
-        };
-        
-        return dadosSimulados;
-      }
-      
+      // A lógica de dados simulados foi removida para produção.
+      // O erro será propagado para ser tratado pela interface do usuário.
       throw error;
     }
   }
