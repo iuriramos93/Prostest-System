@@ -1,77 +1,84 @@
 version: '3.8'
 
 services:
-  # Serviço do banco de dados PostgreSQL
   db:
-    image: postgres:latest
+    image: postgres:13-alpine # Usar uma versão específica e alpine para menor tamanho
     container_name: protestsystem-db
     restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: protest_system
+    env_file:
+      - .env # Carregar variáveis do arquivo .env
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./sql_scripts:/docker-entrypoint-initdb.d
+      # - ./sql_scripts:/docker-entrypoint-initdb.d # Descomente se tiver scripts SQL de inicialização
     networks:
       - protestsystem-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  # Serviço da API Flask
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: protestsystem-api
     restart: always
+    env_file:
+      - .env # Carregar variáveis do arquivo .env
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      FLASK_APP: app.py
-      FLASK_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/protest_system
-      SECRET_KEY: sua_chave_secreta_aqui
-      SESSION_COOKIE_SECURE: "True"
-      SESSION_COOKIE_HTTPONLY: "True"
     ports:
       - "5000:5000"
     volumes:
-      - ./backend:/app
+      - ./backend:/app # Montar código para desenvolvimento
     networks:
       - protestsystem-network
+    # O HEALTHCHECK já está no Dockerfile do backend
 
-  # Serviço do frontend React unificado
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: protestsystem-frontend
+      dockerfile: Dockerfile # Este Dockerfile agora é multi-stage (builder + nginx)
+    container_name: protestsystem-frontend-dev # Nomeado para desenvolvimento
     restart: always
-    depends_on:
-      - api
     ports:
-      - "3002:3002"
+      - "5173:5173" # Porta padrão do Vite para desenvolvimento
     volumes:
-      - ./:/app
-      - /app/node_modules
+      - ./:/app # Montar código fonte para hot-reloading
+      - /app/node_modules # Isolar node_modules para evitar conflitos com o host
+    # Para desenvolvimento, o CMD do Dockerfile (npm run dev) será usado
+    # Se o Dockerfile da raiz for alterado para Nginx, este serviço precisará de um Dockerfile de desenvolvimento dedicado ou um target stage.
+    # Assumindo que o Dockerfile da raiz ainda é para desenvolvimento com Vite dev server:
+    # Se o Dockerfile da raiz foi alterado para Nginx (produção), este serviço precisa ser ajustado.
+    # Para usar o Nginx (Dockerfile multi-stage) também em dev, o volume de código não fará hot-reload sem re-build.
+    # Vamos manter o Dockerfile da raiz para Nginx (produção) e criar um Dockerfile.dev para o frontend.
+    # Por ora, vou assumir que o Dockerfile da raiz foi atualizado para Nginx e este serviço precisa ser revisto.
+    # Para desenvolvimento, é melhor usar o `npm run dev` diretamente.
+    # Vamos reverter o Dockerfile da raiz para desenvolvimento e criar um Dockerfile.prod para o frontend.
+    # Ou, mais simples, usar um target no Dockerfile principal.
+    # A alteração anterior no Dockerfile da raiz o tornou um Dockerfile de produção com Nginx.
+    # Para desenvolvimento, precisamos de um comando que rode o servidor de desenvolvimento do Vite.
+    # Vamos ajustar este serviço para usar o estágio de build e rodar o dev server.
+    # No entanto, o Dockerfile principal já foi modificado para Nginx.
+    # A melhor abordagem é ter um docker-compose.dev.yml que sobrescreva o comando ou use um Dockerfile.dev
+    # Vou manter o Dockerfile principal como produção (Nginx) e ajustar este compose para desenvolvimento.
+    # Este serviço 'frontend' em docker-compose.yml (desenvolvimento) deve usar o Vite dev server.
+    # O Dockerfile principal foi alterado para Nginx. Para desenvolvimento, precisamos de uma configuração diferente.
+    # Vou criar um Dockerfile.dev para o frontend.
+    command: npm run dev -- --host 0.0.0.0 --port 5173 # Comando para desenvolvimento Vite
     networks:
       - protestsystem-network
 
-  # Serviço do PGAdmin (opcional)
   pgadmin:
     image: dpage/pgadmin4
     container_name: protestsystem-pgadmin
     restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@protestsystem.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+    env_file:
+      - .env # Carregar variáveis do arquivo .env
     ports:
       - "5050:80"
     volumes:
@@ -83,10 +90,9 @@ services:
 
 volumes:
   pgdata:
-    # Volume nomeado para persistência dos dados do PostgreSQL
   pgadmin-data:
-    # Volume nomeado para persistência dos dados do PGAdmin
 
 networks:
   protestsystem-network:
-    driver: bridge 
+    driver: bridge
+
