@@ -36,7 +36,7 @@ export default defineConfig({
   server: {
     // Configurações do servidor de desenvolvimento
     host: '127.0.0.1',
-    port: 3002,
+    port: 5173,
     strictPort: true,
     cors: true,
     hmr: {

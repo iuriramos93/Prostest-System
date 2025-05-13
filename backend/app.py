@@ -37,8 +37,8 @@ def create_app(config_name=None):
     
     # Configuração do CORS para permitir requisições do frontend
     # Definindo origens permitidas
-    origins = ["http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003", 
-               "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003"]
+    origins = ["http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:5173", "http://127.0.0.1:3003", 
+               "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:5173", "http://127.0.0.1:3003"]
     
     CORS(app, 
          resources={r"/*": {"origins": origins}}, 
