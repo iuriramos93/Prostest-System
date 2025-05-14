@@ -13,7 +13,7 @@ import time
 db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
-bcrypt = Bcrypt()git
+bcrypt = Bcrypt() # Removido o 'git' acidental daqui
 
 def create_app(config_name=\'development\'):
     app = Flask(__name__)
@@ -21,17 +21,15 @@ def create_app(config_name=\'development\'):
     config[config_name].init_app(app)
 
     # Configurar banco de dados
-    # Corrigido para remover a continuação de linha desnecessária se a string for curta
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:postgres@db:5432/protest_system'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config[\'SQLALCHEMY_DATABASE_URI\'] = os.environ.get(\'DATABASE_URL\') or \
+        \'postgresql://postgres:postgres@db:5432/protest_system\'
+    app.config[\'SQLALCHEMY_TRACK_MODIFICATIONS\'] = False
 
     # Configurações JWT foram completamente removidas
 
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
-    # Removido: jwt.init_app(app)
     
     # Configurar CORS
     CORS(app, resources={
@@ -51,9 +49,9 @@ def create_app(config_name=\'development\'):
     
     # Configurar cache
     cache_config = {
-        'CACHE_TYPE': 'SimpleCache',  # Em produção, considere 'RedisCache'
-        'CACHE_DEFAULT_TIMEOUT': 300,
-        'CACHE_THRESHOLD': 1000  # Máximo de itens no cache
+        \'CACHE_TYPE\': \'SimpleCache\',  # Em produção, considere \'RedisCache\'
+        \'CACHE_DEFAULT_TIMEOUT\': 300,
+        \'CACHE_THRESHOLD\': 1000  # Máximo de itens no cache
     }
     app.config.from_mapping(cache_config)
     cache.init_app(app)
@@ -70,9 +68,9 @@ def create_app(config_name=\'development\'):
     @app.route(\'/health\')
     def health_check():
         try:
-            # Verificar conexão com banco de dado
-            db.session.execute(db.text('SELECT 1')) # Usar db.text para SQLAlchemy 2.0+
-            db_status = 'ok'
+            # Verificar conexão com banco de dados
+            db.session.execute(db.text(\'SELECT 1\')) # Usar db.text para SQLAlchemy 2.0+
+            db_status = \'ok\'
         except Exception as e:
             app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
             db_status = \'error\'
@@ -117,5 +115,4 @@ def create_app(config_name=\'development\'):
 
 # Factory pattern implementation
 # A instância é criada pelo wsgi.py ou arquivo de execução principal (ex: app.py na raiz do backend)
-
 
