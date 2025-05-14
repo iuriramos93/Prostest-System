@@ -25,9 +25,9 @@ def create_app(config_name='development'):
         'postgresql://postgres:postgres@db:5432/protest_system'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Configurações JWT foram completamente removidas
+    # Configurações JWT foram completamente removidas 
 
-    # Inicializar extensões
+    # Inicializa extensões
     db.init_app(app)
     bcrypt.init_app(app)
     
