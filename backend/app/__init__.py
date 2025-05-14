@@ -7,17 +7,15 @@ from flask_compress import Compress
 from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
-# Removido: from flask_jwt_extended import JWTManager
 import os
 import time
 
 db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
-bcrypt = Bcrypt()
-# Removido: jwt = JWTManager()
+bcrypt = Bcrypt()git
 
-def create_app(config_name='development'):
+def create_app(config_name=\'development\'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
@@ -69,46 +67,46 @@ def create_app(config_name='development'):
     # init_async_tasks(app)
 
     # Adicionar endpoint de saúde
-    @app.route('/health')
+    @app.route(\'/health\')
     def health_check():
         try:
-            # Verificar conexão com banco de dados
+            # Verificar conexão com banco de dado
             db.session.execute(db.text('SELECT 1')) # Usar db.text para SQLAlchemy 2.0+
             db_status = 'ok'
         except Exception as e:
             app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
-            db_status = 'error'
+            db_status = \'error\'
         
         return {
-            'status': 'ok' if db_status == 'ok' else 'error',
-            'database': db_status,
-            'timestamp': time.time()
+            \'status\': \'ok\' if db_status == \'ok\' else \'error\',
+            \'database\': db_status,
+            \'timestamp\': time.time()
         }
 
     # Registrar blueprints
     from app.auth import auth as auth_blueprint
-    app.register_blueprint(auth_blueprint, url_prefix='/api/auth')
+    app.register_blueprint(auth_blueprint, url_prefix=\'/api/auth\')
 
     from app.titulos import titulos as titulos_blueprint
-    app.register_blueprint(titulos_blueprint, url_prefix='/api/titulos')
+    app.register_blueprint(titulos_blueprint, url_prefix=\'/api/titulos\')
 
     from app.remessas import remessas as remessas_blueprint
-    app.register_blueprint(remessas_blueprint, url_prefix='/api/remessas')
+    app.register_blueprint(remessas_blueprint, url_prefix=\'/api/remessas\')
 
     from app.desistencias import desistencias as desistencias_blueprint
-    app.register_blueprint(desistencias_blueprint, url_prefix='/api/desistencias')
+    app.register_blueprint(desistencias_blueprint, url_prefix=\'/api/desistencias\')
 
     from app.erros import erros as erros_blueprint
-    app.register_blueprint(erros_blueprint, url_prefix='/api/erros')
+    app.register_blueprint(erros_blueprint, url_prefix=\'/api/erros\')
 
     from app.relatorios import relatorios as relatorios_blueprint
-    app.register_blueprint(relatorios_blueprint, url_prefix='/api/relatorios')
+    app.register_blueprint(relatorios_blueprint, url_prefix=\'/api/relatorios\')
 
     from app.autorizacoes_cancelamento import autorizacoes as autorizacoes_blueprint
-    app.register_blueprint(autorizacoes_blueprint, url_prefix='/api/autorizacoes')
+    app.register_blueprint(autorizacoes_blueprint, url_prefix=\'/api/autorizacoes\')
 
     from app.protestos import protestos as protestos_blueprint
-    app.register_blueprint(protestos_blueprint, url_prefix='/api/protestos')
+    app.register_blueprint(protestos_blueprint, url_prefix=\'/api/protestos\')
 
     # Criar tabelas do banco de dados se não existirem
     # É melhor usar Flask-Migrate para gerenciar o esquema do banco de dados
@@ -119,4 +117,5 @@ def create_app(config_name='development'):
 
 # Factory pattern implementation
 # A instância é criada pelo wsgi.py ou arquivo de execução principal (ex: app.py na raiz do backend)
+
 
