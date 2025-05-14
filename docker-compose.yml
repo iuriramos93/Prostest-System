@@ -16,8 +16,8 @@ services:
       - "${POSTGRES_PORT:-5432}:5432" # Permite configurar a porta do host via .env
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Descomente a linha abaixo se você tiver scripts SQL de inicialização
-      # - ./backend/sql_scripts:/docker-entrypoint-initdb.d
+      # Descomentado e corrigido o caminho para os scripts SQL de inicialização
+      - ./sql_scripts:/docker-entrypoint-initdb.d
     networks:
       - protestsystem-network
     healthcheck:
