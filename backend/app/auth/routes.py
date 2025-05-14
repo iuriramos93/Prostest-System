@@ -1,130 +1,132 @@
 from datetime import datetime
 import os
-from flask import request, jsonify, current_app
-from datetime import datetime
-from werkzeug.security import generate_password_hash
+from flask import request, jsonify, current_app, g # Adicionado g
+from werkzeug.security import generate_password_hash # Não usado diretamente aqui, mas pode ser útil para User model
 from app import db
 from app.models import User
 from . import auth
-from .middleware import auth_required, get_current_user
+from .middleware import auth_required # Removida a importação de get_current_user
 
-@auth.route('/login', methods=['POST', 'OPTIONS'])
+@auth.route("/login", methods=["POST", "OPTIONS"])
 def login():
     """
-    Endpoint para autenticação de usuários
+    Endpoint para autenticação de usuários (Basic Auth)
     ---
     tags:
       - Autenticação
     parameters:
-      - in: body
-        name: body
-        schema:
-          type: object
-          required:
-            - email
-            - senha
-          properties:
-            email:
-              type: string
-            senha:
-              type: string
+      - in: header
+        name: Authorization
+        type: string
+        required: true
+        description: Credenciais Basic Auth (ex: Basic dXNlcjpwYXNzd29yZA==)
     responses:
       200:
-        description: Login bem-sucedido
+        description: Login bem-sucedido, usuário autenticado.
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            user:
+              $ref: "#/definitions/User"
       401:
-        description: Credenciais inválidas
+        description: Credenciais inválidas ou cabeçalho de autorização ausente/malformado.
     """
-    # Tratamento para requisições OPTIONS (preflight CORS)
-    if request.method == 'OPTIONS':
+    if request.method == "OPTIONS":
         response = current_app.make_default_options_response()
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS,GET") # Adicionado GET para /me
         return response
-    
-    data = request.get_json()
-    
-    # Verificar se os dados foram enviados corretamente
-    if not data:
-        return jsonify({'message': 'Dados não fornecidos'}), 400
-    
-    # Verificar os campos email e senha (ou password)
-    email = data.get('email')
-    # Verificar ambos os campos possíveis: senha (frontend) ou password (documentação)
-    senha = data.get('senha') or data.get('password')
-    
-    if not email or not senha:
-        return jsonify({'message': 'Dados incompletos. Email e senha são obrigatórios.'}), 400
-    
-    user = User.query.filter_by(email=email).first()
-    
-    if not user or not user.verify_password(senha):
-        return jsonify({'message': 'Credenciais inválidas'}), 401
-    
-    if not user.ativo:
-        return jsonify({'message': 'Usuário desativado. Contate o administrador.'}), 403
-    
-    # Atualizar último acesso
-    user.ultimo_acesso = datetime.utcnow()
-    db.session.commit()
-    
-    # Importar os módulos JWT para gerar os tokens
-    from flask_jwt_extended import create_access_token, create_refresh_token
-    
-    # Dados do usuário para armazenar no token (minimizar tamanho)
-    user_claims = {
-        'id': user.id,
-        'username': user.username,
-        'admin': user.admin
-    }
-    
-    # Gerar tokens JWT
-    access_token = create_access_token(identity=user.id, additional_claims=user_claims)
-    refresh_token = create_refresh_token(identity=user.id)
-    
-    # Configurar resposta com headers CORS adequados
-    response = jsonify({
-        'user': user.to_dict(),
-        'access_token': access_token,
-        'refresh_token': refresh_token,
-        'token': access_token  # Adicionado para compatibilidade com frontend
-    })
-    
-    # Configurar cookies seguros para os tokens
-    secure = current_app.config.get('JWT_COOKIE_SECURE', False)
-    response.set_cookie('access_token_cookie', access_token, 
-                        httponly=True, secure=secure, 
-                        samesite='Lax', max_age=86400)
-    response.set_cookie('refresh_token_cookie', refresh_token, 
-                        httponly=True, secure=secure, 
-                        samesite='Lax', max_age=604800)
-    
-    return response, 200
 
-@auth.route('/me', methods=['GET'])
+    # Para Basic Auth, a autenticação é feita pelo decorador @auth_required.
+    # Se o cliente enviar o header Authorization: Basic ..., o decorador cuidará disso.
+    # Esta rota de login pode ser usada para verificar as credenciais e retornar dados do usuário
+    # ou simplesmente para o frontend saber que o usuário está "logado" (tem credenciais válidas).
+    # A lógica de validação de credenciais já está no middleware basic_auth_required.
+    # Se chegarmos aqui via uma requisição POST com Basic Auth, o usuário já foi validado pelo middleware
+    # se a rota /login fosse protegida com @auth_required. 
+    # Como não está, precisamos simular a validação aqui ou proteger a rota.
+    # Para simplificar e alinhar com o frontend que espera um POST para /login:
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        # Se o frontend não enviar o header, ele pode estar enviando no corpo (não ideal para Basic Auth)
+        data = request.get_json()
+        if not data:
+            return jsonify({"message": "Dados de autenticação não fornecidos (esperado header Authorization ou JSON com email/senha)"}), 400
+        email = data.get("email")
+        senha = data.get("senha") or data.get("password")
+        if not email or not senha:
+            return jsonify({"message": "Email e senha são obrigatórios no corpo JSON se o header Authorization não for usado."}), 400
+        
+        user = User.query.filter_by(email=email).first()
+        if not user or not user.verify_password(senha):
+            return jsonify({"message": "Credenciais inválidas"}), 401
+        if not user.ativo:
+            return jsonify({"message": "Usuário desativado. Contate o administrador."}), 403
+        
+        # Atualizar último acesso
+        user.ultimo_acesso = datetime.utcnow()
+        db.session.commit()
+        current_app.logger.info(f"Usuário {email} autenticado com sucesso via POST para /login.")
+        return jsonify({"message": "Login bem-sucedido", "user": user.to_dict()}), 200
+
+    # Se o header Authorization estiver presente, o middleware (se aplicado à rota) já teria validado.
+    # Como não está, vamos validar aqui também.
+    try:
+        auth_type, credentials_b64 = auth_header.split(None, 1)
+        if auth_type.lower() == "basic":
+            credentials_bytes = base64.b64decode(credentials_b64)
+            credentials_str = credentials_bytes.decode("iso-8859-1")
+            username, password = credentials_str.split(":", 1)
+            
+            user = User.query.filter_by(email=username).first()
+            if not user or not user.verify_password(password):
+                return jsonify({"message": "Credenciais inválidas no header Authorization"}), 401
+            if not user.ativo:
+                return jsonify({"message": "Usuário desativado. Contate o administrador."}), 403
+            
+            user.ultimo_acesso = datetime.utcnow()
+            db.session.commit()
+            current_app.logger.info(f"Usuário {username} autenticado com sucesso via header Authorization em /login.")
+            return jsonify({"message": "Login bem-sucedido", "user": user.to_dict()}), 200
+        else:
+            return jsonify({"message": "Esquema de autenticação Basic esperado no header Authorization"}), 401
+    except Exception as e:
+        current_app.logger.error(f"Erro ao processar header Authorization em /login: {e}")
+        return jsonify({"message": "Erro ao processar autenticação via header"}), 401
+
+@auth.route("/me", methods=["GET"])
 @auth_required()
 def get_user_info():
     """
-    Retorna informações do usuário autenticado
+    Retorna informações do usuário autenticado (via Basic Auth)
     ---
     tags:
       - Autenticação
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     responses:
       200:
         description: Informações do usuário
+        schema:
+          $ref: "#/definitions/User"
+      401:
+        description: Não autenticado
       404:
-        description: Usuário não encontrado
+        description: Usuário não encontrado (não deveria acontecer se autenticado)
     """
-    user = get_current_user()
+    user = getattr(g, "user", None) # Obter usuário do contexto da requisição (definido em middleware)
     
     if not user:
-        return jsonify({'message': 'Usuário não encontrado'}), 404
+        # Isso não deveria acontecer se @auth_required funcionou corretamente
+        return jsonify({"message": "Usuário não encontrado no contexto da requisição, mesmo após @auth_required."}), 404 
     
     return jsonify(user.to_dict()), 200
 
-@auth.route('/users', methods=['GET'])
+@auth.route("/users", methods=["GET"])
 @auth_required(admin_required=True)
 def get_users():
     """
@@ -133,17 +135,19 @@ def get_users():
     tags:
       - Autenticação
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     responses:
       200:
         description: Lista de usuários
       403:
-        description: Acesso negado
+        description: Acesso negado (não é admin)
+      401:
+        description: Não autenticado
     """
     users = User.query.all()
     return jsonify([user.to_dict() for user in users]), 200
 
-@auth.route('/users', methods=['POST'])
+@auth.route("/users", methods=["POST"])
 @auth_required(admin_required=True)
 def create_user():
     """
@@ -152,7 +156,7 @@ def create_user():
     tags:
       - Autenticação
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - in: body
         name: body
@@ -188,24 +192,22 @@ def create_user():
     """
     data = request.get_json()
     
-    if not data or not all(k in data for k in ('username', 'email', 'password', 'nome_completo')):
-        return jsonify({'message': 'Dados incompletos'}), 400
+    if not data or not all(k in data for k in ("username", "email", "password", "nome_completo")):
+        return jsonify({"message": "Dados incompletos"}), 400
     
-    # Verificar se usuário já existe
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'message': 'Nome de usuário já existe'}), 409
+    if User.query.filter_by(username=data["username"]).first():
+        return jsonify({"message": "Nome de usuário já existe"}), 409
     
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'message': 'Email já cadastrado'}), 409
+    if User.query.filter_by(email=data["email"]).first():
+        return jsonify({"message": "Email já cadastrado"}), 409
     
-    # Criar novo usuário
     user = User(
-        username=data['username'],
-        email=data['email'],
-        password=data['password'],
-        nome_completo=data['nome_completo'],
-        cargo=data.get('cargo'),
-        admin=data.get('admin', False)
+        username=data["username"],
+        email=data["email"],
+        password=data["password"], # O model User deve hashear a senha ao setar
+        nome_completo=data["nome_completo"],
+        cargo=data.get("cargo"),
+        admin=data.get("admin", False)
     )
     
     db.session.add(user)
@@ -213,7 +215,7 @@ def create_user():
     
     return jsonify(user.to_dict()), 201
 
-@auth.route('/users/<int:id>', methods=['PUT'])
+@auth.route("/users/<int:id>", methods=["PUT"])
 @auth_required()
 def update_user(id):
     """
@@ -222,7 +224,7 @@ def update_user(id):
     tags:
       - Autenticação
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - name: id
         in: path
@@ -255,58 +257,52 @@ def update_user(id):
       404:
         description: Usuário não encontrado
     """
-    current_user = get_current_user()
+    current_user = getattr(g, "user", None) # Obter usuário do contexto da requisição
     
-    # Apenas administradores podem atualizar outros usuários
-    # Usuários normais só podem atualizar seu próprio perfil
     if not current_user or (not current_user.admin and current_user.id != id):
-        return jsonify({'message': 'Acesso negado'}), 403
+        return jsonify({"message": "Acesso negado"}), 403
     
-    user = User.query.get(id)
-    if not user:
-        return jsonify({'message': 'Usuário não encontrado'}), 404
+    user_to_update = User.query.get(id)
+    if not user_to_update:
+        return jsonify({"message": "Usuário não encontrado"}), 404
     
     data = request.get_json()
     
-    # Atualizar campos
-    if 'username' in data and data['username'] != user.username:
-        # Verificar se o novo username já existe
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'message': 'Nome de usuário já existe'}), 409
-        user.username = data['username']
+    if "username" in data and data["username"] != user_to_update.username:
+        if User.query.filter(User.id != id, User.username == data["username"]).first():
+            return jsonify({"message": "Nome de usuário já existe"}), 409
+        user_to_update.username = data["username"]
     
-    if 'email' in data and data['email'] != user.email:
-        # Verificar se o novo email já existe
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'message': 'Email já cadastrado'}), 409
-        user.email = data['email']
+    if "email" in data and data["email"] != user_to_update.email:
+        if User.query.filter(User.id != id, User.email == data["email"]).first():
+            return jsonify({"message": "Email já cadastrado"}), 409
+        user_to_update.email = data["email"]
     
-    if 'password' in data and data['password']:
-        user.password = data['password']
+    if "password" in data and data["password"]:
+        user_to_update.password = data["password"] # O model User deve hashear a senha
     
-    if 'nome_completo' in data:
-        user.nome_completo = data['nome_completo']
+    if "nome_completo" in data:
+        user_to_update.nome_completo = data["nome_completo"]
     
-    if 'cargo' in data:
-        user.cargo = data['cargo']
+    if "cargo" in data:
+        user_to_update.cargo = data["cargo"]
     
-    # Apenas administradores podem alterar status de admin e ativo
     if current_user.admin:
-        if 'admin' in data:
-            user.admin = data['admin']
-        
-        if 'ativo' in data:
-            user.ativo = data['ativo']
+        if "admin" in data:
+            user_to_update.admin = data["admin"]
+        if "ativo" in data:
+            user_to_update.ativo = data["ativo"]
     
     db.session.commit()
     
-    # Limpar o cache do usuário para forçar uma nova consulta
-    from .middleware import clear_user_cache
-    clear_user_cache(user.id)
+    # A função clear_user_cache foi mantida no middleware, mas sua lógica é um placeholder.
+    # Se não houver cache real, esta chamada pode ser removida.
+    from .middleware import clear_user_cache 
+    clear_user_cache(user_to_update.id)
     
-    return jsonify(user.to_dict()), 200
+    return jsonify(user_to_update.to_dict()), 200
 
-@auth.route('/users/<int:id>', methods=['DELETE'])
+@auth.route("/users/<int:id>", methods=["DELETE"])
 @auth_required(admin_required=True)
 def delete_user(id):
     """
@@ -315,7 +311,7 @@ def delete_user(id):
     tags:
       - Autenticação
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - name: id
         in: path
@@ -329,116 +325,51 @@ def delete_user(id):
       404:
         description: Usuário não encontrado
     """
-    current_user = get_current_user()
+    current_user = getattr(g, "user", None) # Obter usuário do contexto da requisição
     
-    user = User.query.get(id)
-    if not user:
-        return jsonify({'message': 'Usuário não encontrado'}), 404
+    user_to_delete = User.query.get(id)
+    if not user_to_delete:
+        return jsonify({"message": "Usuário não encontrado"}), 404
     
-    # Não permitir que um administrador remova a si mesmo
-    if user.id == current_user.id:
-        return jsonify({'message': 'Não é possível remover seu próprio usuário'}), 400
+    if user_to_delete.id == current_user.id:
+        return jsonify({"message": "Não é possível remover seu próprio usuário"}), 400
     
-    db.session.delete(user)
+    db.session.delete(user_to_delete)
     db.session.commit()
     
-    return jsonify({'message': 'Usuário removido com sucesso'}), 200
+    return jsonify({"message": "Usuário removido com sucesso"}), 200
 
-@auth.route('/refresh', methods=['POST'])
-def refresh():
-    """
-    Endpoint para renovar o token de acesso usando um refresh token
-    ---
-    tags:
-      - Autenticação
-    parameters:
-      - in: body
-        name: body
-        schema:
-          type: object
-          required:
-            - refresh_token
-          properties:
-            refresh_token:
-              type: string
-    responses:
-      200:
-        description: Token renovado com sucesso
-      401:
-        description: Token inválido ou expirado
-    """
-    from flask_jwt_extended import get_jwt_identity, create_access_token, verify_jwt_in_request, get_jwt
-    
-    # Verificar se o refresh token foi enviado
-    data = request.get_json()
-    if not data or 'refresh_token' not in data:
-        # Tentar obter do cookie
-        refresh_token = request.cookies.get('refresh_token_cookie')
-        if not refresh_token:
-            return jsonify({'message': 'Refresh token não fornecido'}), 400
-    else:
-        refresh_token = data.get('refresh_token')
-    
-    try:
-        # Verificar o refresh token
-        from flask_jwt_extended import decode_token
-        decoded_token = decode_token(refresh_token)
-        user_id = decoded_token['sub']
-        
-        # Buscar o usuário
-        user = User.query.get(user_id)
-        if not user or not user.ativo:
-            return jsonify({'message': 'Usuário inválido ou inativo'}), 401
-        
-        # Dados do usuário para armazenar no token (minimizar tamanho)
-        user_claims = {
-            'id': user.id,
-            'username': user.username,
-            'admin': user.admin
-        }
-        
-        # Gerar novo token de acesso
-        access_token = create_access_token(identity=user.id, additional_claims=user_claims)
-        
-        # Configurar resposta
-        response = jsonify({
-            'access_token': access_token,
-            'token': access_token  # Para compatibilidade com frontend
-        })
-        
-        # Configurar cookie seguro para o novo token
-        secure = current_app.config.get('JWT_COOKIE_SECURE', False)
-        response.set_cookie('access_token_cookie', access_token, 
-                            httponly=True, secure=secure, 
-                            samesite='Lax', max_age=86400)
-        
-        return response, 200
-    except Exception as e:
-        return jsonify({'message': 'Token inválido ou expirado', 'error': str(e)}), 401
+# A rota /refresh não faz sentido com Basic Auth, pois não há tokens para renovar.
+# Removida.
 
-@auth.route('/logout', methods=['POST'])
-def logout():
+@auth.route("/logout", methods=["POST", "OPTIONS"])
+def logout(): # Não precisa de @auth_required, pois o cliente apenas "esquece" as credenciais
     """
-    Endpoint para realizar logout
+    Endpoint para realizar logout (para Basic Auth, é mais um placeholder)
     ---
     tags:
       - Autenticação
     responses:
       200:
-        description: Logout realizado com sucesso
+        description: Logout realizado com sucesso (cliente deve limpar credenciais)
     """
-    response = jsonify({'message': 'Logout realizado com sucesso'})
-    
-    # Remover cookies de autenticação
-    response.delete_cookie('access_token_cookie')
-    response.delete_cookie('refresh_token_cookie')
-    
+    if request.method == "OPTIONS":
+        response = current_app.make_default_options_response()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        return response
+        
+    # Com Basic Auth, o logout é responsabilidade do cliente (limpar o header Authorization ou as credenciais armazenadas).
+    # O servidor pode retornar uma resposta 401 para forçar o navegador a limpar o cache de autenticação, mas isso é opcional.
+    response = jsonify({"message": "Logout realizado com sucesso. O cliente deve limpar as credenciais Basic Auth."})
+    # response.status_code = 401 # Opcional: para tentar forçar o prompt de login no navegador
     return response, 200
 
-@auth.route('/seed-admin', methods=['POST'])
+@auth.route("/seed-admin", methods=["POST"])
 def seed_admin():
     """
-    Endpoint para criar usuário admin inicial
+    Endpoint para criar usuário admin inicial (para desenvolvimento/setup)
     ---
     tags:
       - Autenticação
@@ -456,33 +387,37 @@ def seed_admin():
       201:
         description: Usuário admin criado
       400:
-        description: Dados inválidos
+        description: Dados inválidos ou chave secreta não fornecida
+      401:
+        description: Chave secreta inválida
       409:
         description: Usuário admin já existe
     """
     data = request.get_json()
     
-    if not data or 'secret_key' not in data:
-        return jsonify({'message': 'Chave secreta não fornecida'}), 400
+    if not data or "secret_key" not in data:
+        return jsonify({"message": "Chave secreta não fornecida"}), 400
     
-    if data['secret_key'] != 'dev_setup_key':
-        return jsonify({'message': 'Chave secreta inválida'}), 401
+    # Use uma variável de ambiente para a chave secreta em produção
+    expected_secret_key = os.environ.get("ADMIN_SEED_SECRET_KEY", "dev_setup_key") 
+    if data["secret_key"] != expected_secret_key:
+        return jsonify({"message": "Chave secreta inválida"}), 401
     
-    # Verificar se já existe um usuário admin
-    if User.query.filter_by(email='admin@protestsystem.com').first():
-        return jsonify({'message': 'Usuário admin já existe'}), 409
+    if User.query.filter_by(email="admin@protestsystem.com").first():
+        return jsonify({"message": "Usuário admin já existe"}), 409
     
-    # Criar usuário admin
     admin = User(
-        username='admin',
-        email='admin@protestsystem.com',
-        password='admin123',
-        nome_completo='Administrador',
-        cargo='Administrador',
-        admin=True
+        username="admin",
+        email="admin@protestsystem.com",
+        password="admin123", # O model User deve hashear a senha
+        nome_completo="Administrador",
+        cargo="Administrador",
+        admin=True,
+        ativo=True
     )
     
     db.session.add(admin)
     db.session.commit()
     
-    return jsonify({'message': 'Usuário admin criado com sucesso'}), 201
+    return jsonify({"message": "Usuário admin criado com sucesso"}), 201
+

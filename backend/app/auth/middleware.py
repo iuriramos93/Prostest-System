@@ -1,9 +1,9 @@
 from functools import wraps
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, g
 from app.models import User # Assuming models.py is in the app directory
 import base64
 
-def basic_auth_required(f):
+def basic_auth_required_internal(f, admin_required_flag=False):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get("Authorization")
@@ -20,14 +20,13 @@ def basic_auth_required(f):
 
         try:
             credentials_bytes = base64.b64decode(credentials_b64)
-        except base64.binascii.Error: # Corrected exception type
+        except base64.binascii.Error:
             return jsonify({"message": "Credenciais Base64 inválidas"}), 401
 
         try:
-            credentials_str = credentials_bytes.decode("iso-8859-1") # Using iso-8859-1 as per original code for basic auth
+            credentials_str = credentials_bytes.decode("iso-8859-1")
             username, password = credentials_str.split(":", 1)
         except UnicodeDecodeError:
-            # Attempt fallback to utf-8 if iso-8859-1 fails, or log/handle as appropriate
             try:
                 credentials_str = credentials_bytes.decode("utf-8")
                 username, password = credentials_str.split(":", 1)
@@ -38,32 +37,38 @@ def basic_auth_required(f):
         except ValueError:
             return jsonify({"message": "Formato de credenciais inválido (esperado usuário:senha)"}), 401
 
-        # Assuming username for Basic Auth is the email
         user = User.query.filter_by(email=username).first()
 
         if not user or not user.verify_password(password) or not user.ativo:
             current_app.logger.warning(f"Falha na autenticação Basic para o usuário: {username}")
             return jsonify({"message": "Credenciais inválidas ou usuário inativo"}), 401
         
+        if admin_required_flag and not user.admin:
+            current_app.logger.warning(f"Usuário {username} não é admin, mas acesso de admin é requerido.")
+            return jsonify({"message": "Acesso restrito a administradores"}), 403
+
         current_app.logger.info(f"Usuário {username} autenticado com sucesso via Basic Auth.")
-        # Adicionar o usuário ao contexto da requisição, se necessário para outras partes da aplicação
-        # g.user = user # Exemplo, requer import de 'g' from flask
+        g.user = user # Armazena o usuário autenticado no contexto da requisição
         return f(*args, **kwargs)
     return decorated_function
 
-# Manter o alias auth_required para compatibilidade, apontando para basic_auth_required
-# Se o parâmetro admin_required for necessário, ele precisará ser integrado à lógica do basic_auth_required
-# ou uma nova função específica para admin com basic auth deve ser criada.
-# Por ora, faremos um alias simples. Se a lógica de admin_required for usada em algum lugar, precisará de ajuste.
 def auth_required(admin_required=False):
     """
     Decorador para verificar se o usuário está autenticado via Basic Auth.
-    O parâmetro admin_required não é funcional nesta versão simplificada e precisaria
-    de lógica adicional dentro de basic_auth_required ou uma nova função.
+    Se admin_required for True, também verifica se o usuário é administrador.
     """
-    if admin_required:
-        # Esta é uma limitação. A lógica de verificação de admin precisaria ser
-        # adicionada em basic_auth_required ou em um novo decorador.
-        current_app.logger.warning("O parâmetro admin_required=True em auth_required não tem efeito com Basic Auth puro sem modificações.")
-    return basic_auth_required
+    def decorator(f):
+        return basic_auth_required_internal(f, admin_required_flag=admin_required)
+    return decorator
+
+# Função para limpar cache de usuário (se ainda for relevante)
+# Esta função era chamada em update_user. Se o cache for simples (ex: g.user),
+# não há muito o que limpar entre requisições. Se houver um cache mais complexo,
+# esta lógica precisaria ser revista.
+# Por ora, vamos manter uma stub ou remover se não for usada.
+def clear_user_cache(user_id):
+    # Implementar lógica de limpeza de cache se necessário
+    # Exemplo: se você estiver usando um cache externo como Redis
+    current_app.logger.info(f"clear_user_cache chamada para user_id: {user_id}. Nenhuma ação de cache implementada.")
+    pass
 
