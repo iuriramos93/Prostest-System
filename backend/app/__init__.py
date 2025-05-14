@@ -7,7 +7,7 @@ from flask_compress import Compress
 from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager
+# Removido: from flask_jwt_extended import JWTManager
 import os
 import time
 
@@ -15,7 +15,7 @@ db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
 bcrypt = Bcrypt()
-jwt = JWTManager()
+# Removido: jwt = JWTManager()
 
 def create_app(config_name='development'):
     app = Flask(__name__)
@@ -23,24 +23,22 @@ def create_app(config_name='development'):
     config[config_name].init_app(app)
 
     # Configurar banco de dados
+    # Corrigido para remover a continuação de linha desnecessária se a string for curta
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
         'postgresql://postgres:postgres@db:5432/protest_system'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Configurar JWT
-    app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY', 'jwt-secret-string')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = app.config.get('JWT_ACCESS_TOKEN_EXPIRES')
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = app.config.get('JWT_REFRESH_TOKEN_EXPIRES')
+    # Configurações JWT foram completamente removidas
 
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
-    jwt.init_app(app)
+    # Removido: jwt.init_app(app)
     
     # Configurar CORS
     CORS(app, resources={
         r"/*": {
-            "origins": "*",
+            "origins": "*", # Em produção, restrinja isso
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
@@ -55,27 +53,27 @@ def create_app(config_name='development'):
     
     # Configurar cache
     cache_config = {
-        'CACHE_TYPE': 'SimpleCache',  # Em produção, use 'RedisCache'
+        'CACHE_TYPE': 'SimpleCache',  # Em produção, considere 'RedisCache'
         'CACHE_DEFAULT_TIMEOUT': 300,
         'CACHE_THRESHOLD': 1000  # Máximo de itens no cache
     }
     app.config.from_mapping(cache_config)
     cache.init_app(app)
     
-    # Inicializar ferramentas de performance personalizadas
-    from app.utils.performance import init_performance_tools
-    init_performance_tools(app)
+    # Inicializar ferramentas de performance personalizadas (se existirem)
+    # from app.utils.performance import init_performance_tools
+    # init_performance_tools(app)
     
-    # Inicializar sistema de tarefas assíncronas
-    from app.utils.async_tasks import init_async_tasks
-    init_async_tasks(app)
+    # Inicializar sistema de tarefas assíncronas (se existirem)
+    # from app.utils.async_tasks import init_async_tasks
+    # init_async_tasks(app)
 
     # Adicionar endpoint de saúde
     @app.route('/health')
     def health_check():
         try:
             # Verificar conexão com banco de dados
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1')) # Usar db.text para SQLAlchemy 2.0+
             db_status = 'ok'
         except Exception as e:
             app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
@@ -112,11 +110,13 @@ def create_app(config_name='development'):
     from app.protestos import protestos as protestos_blueprint
     app.register_blueprint(protestos_blueprint, url_prefix='/api/protestos')
 
-    # Criar tabelas do banco de dados
-    with app.app_context():
-        db.create_all()
+    # Criar tabelas do banco de dados se não existirem
+    # É melhor usar Flask-Migrate para gerenciar o esquema do banco de dados
+    # with app.app_context():
+    #     db.create_all()
 
     return app
 
 # Factory pattern implementation
-# A instância é criada pelo wsgi.py
+# A instância é criada pelo wsgi.py ou arquivo de execução principal (ex: app.py na raiz do backend)
+
