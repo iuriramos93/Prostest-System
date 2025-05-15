@@ -1,12 +1,12 @@
 from flask import jsonify, request, current_app
-from app.auth.middleware import auth_required, get_current_user
+from app.auth.middleware import auth_required
 from app.utils.async_tasks import get_task_status
 from app.utils.task_utils import list_tasks, get_pending_tasks
 from app.models import Remessa, User
 from app import db
 from . import remessas
 
-@remessas.route('/tasks/<task_id>', methods=['GET'])
+@remessas.route("/tasks/<task_id>", methods=["GET"])
 @auth_required()
 def get_task(task_id):
     """Obtém o status de uma tarefa assíncrona
@@ -30,14 +30,14 @@ def get_task(task_id):
     # Verifica se a tarefa existe
     task_status = get_task_status(task_id)
     if not task_status:
-        return jsonify({'message': 'Tarefa não encontrada'}), 404
+        return jsonify({"message": "Tarefa não encontrada"}), 404
     
     # Retorna o status da tarefa
     return jsonify({
-        'task': task_status
+        "task": task_status
     }), 200
 
-@remessas.route('/by-task/<task_id>', methods=['GET'])
+@remessas.route("/by-task/<task_id>", methods=["GET"])
 @auth_required()
 def get_remessa_by_task(task_id):
     """Obtém uma remessa pelo ID da tarefa
@@ -61,14 +61,14 @@ def get_remessa_by_task(task_id):
     # Busca a remessa pelo ID da tarefa
     remessa = Remessa.query.filter_by(task_id=task_id).first()
     if not remessa:
-        return jsonify({'message': 'Remessa não encontrada'}), 404
+        return jsonify({"message": "Remessa não encontrada"}), 404
     
     # Retorna a remessa
     return jsonify({
-        'remessa': remessa.to_dict()
+        "remessa": remessa.to_dict()
     }), 200
 
-@remessas.route('/tasks', methods=['GET'])
+@remessas.route("/tasks", methods=["GET"])
 @auth_required()
 def list_all_tasks():
     """Lista todas as tarefas assíncronas
@@ -93,26 +93,26 @@ def list_all_tasks():
         description: Lista de tarefas
     """
     # Obtém os parâmetros da requisição
-    status = request.args.get('status')
-    limit = request.args.get('limit')
+    status = request.args.get("status")
+    limit = request.args.get("limit")
     
     # Converte o limite para inteiro, se especificado
     if limit:
         try:
             limit = int(limit)
         except ValueError:
-            return jsonify({'message': 'Limite inválido'}), 400
+            return jsonify({"message": "Limite inválido"}), 400
     
     # Lista as tarefas
     tasks = list_tasks(status_filter=status, limit=limit)
     
     # Retorna a lista de tarefas
     return jsonify({
-        'tasks': tasks,
-        'count': len(tasks)
+        "tasks": tasks,
+        "count": len(tasks)
     }), 200
 
-@remessas.route('/tasks/pending', methods=['GET'])
+@remessas.route("/tasks/pending", methods=["GET"])
 @auth_required()
 def list_pending_tasks():
     """Lista todas as tarefas pendentes ou em execução
@@ -130,6 +130,7 @@ def list_pending_tasks():
     
     # Retorna a lista de tarefas
     return jsonify({
-        'tasks': tasks,
-        'count': len(tasks)
+        "tasks": tasks,
+        "count": len(tasks)
     }), 200
+

@@ -1,6 +1,6 @@
 from datetime import datetime
-from flask import request, jsonify, current_app
-from app.auth.middleware import auth_required, get_current_user
+from flask import request, jsonify, current_app, g
+from app.auth.middleware import auth_required
 from sqlalchemy import or_, and_
 from app import db
 from app.models import Desistencia, Titulo, User, Devedor, Erro
@@ -151,7 +151,7 @@ def create_desistencia():
       404:
         description: Título não encontrado
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
@@ -264,7 +264,7 @@ def update_desistencia(id):
       404:
         description: Desistência não encontrada
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
@@ -361,7 +361,7 @@ def processar_desistencia(id):
       404:
         description: Desistência não encontrada
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
@@ -495,21 +495,24 @@ def aprovar_desistencia(id):
     if desistencia.status != 'Pendente':
         return jsonify({'message': f'Desistência não pode ser aprovada. Status atual: {desistencia.status}'}), 400
     
-    current_user = get_current_user()
+    current_user = g.user
     
     # Atualizar a desistência
     desistencia.status = 'Aprovada'
     desistencia.data_processamento = datetime.utcnow()
     desistencia.usuario_processamento_id = current_user.id if current_user else None
     
-    # Atualizar o título associado
-    titulo = Titulo.query.get(desistencia.titulo_id)
-    if titulo:
-        titulo.status = 'Desistido'
-    
+    # Atualizar o título associado, se existir
+    if desistencia.titulo:
+        desistencia.titulo.status = 'Pago' # Ou outro status apropriado
+        desistencia.titulo.data_atualizacao = datetime.utcnow()
+        
     db.session.commit()
     
-    return jsonify({'message': 'Desistência aprovada com sucesso', 'desistencia': desistencia.to_dict()}), 200
+    return jsonify({
+        'message': 'Desistência aprovada com sucesso',
+        'desistencia': desistencia.to_dict()
+    }), 200
 
 @desistencias.route('/<int:id>/rejeitar', methods=['PUT'])
 @auth_required()
@@ -532,9 +535,9 @@ def rejeitar_desistencia(id):
         schema:
           type: object
           properties:
-            motivo:
+            observacoes:
               type: string
-              description: Motivo da rejeição
+              description: Observações sobre a rejeição
     responses:
       200:
         description: Desistência rejeitada
@@ -553,20 +556,21 @@ def rejeitar_desistencia(id):
     if desistencia.status != 'Pendente':
         return jsonify({'message': f'Desistência não pode ser rejeitada. Status atual: {desistencia.status}'}), 400
     
-    # Obter dados da requisição
+    current_user = g.user
     data = request.get_json()
-    motivo = data.get('motivo') if data else None
-    
-    current_user = get_current_user()
     
     # Atualizar a desistência
     desistencia.status = 'Rejeitada'
     desistencia.data_processamento = datetime.utcnow()
     desistencia.usuario_processamento_id = current_user.id if current_user else None
     
-    if motivo:
-        desistencia.observacoes = motivo
-    
+    if data and 'observacoes' in data:
+        desistencia.observacoes = data.get('observacoes')
+        
     db.session.commit()
     
-    return jsonify({'message': 'Desistência rejeitada com sucesso', 'desistencia': desistencia.to_dict()}), 200
+    return jsonify({
+        'message': 'Desistência rejeitada com sucesso',
+        'desistencia': desistencia.to_dict()
+    }), 200
+

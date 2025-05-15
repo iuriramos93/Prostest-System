@@ -1,6 +1,6 @@
 from datetime import datetime
-from flask import request, jsonify
-from app.auth.middleware import auth_required, get_current_user
+from flask import request, jsonify, g
+from app.auth.middleware import auth_required
 from sqlalchemy import or_, and_
 from app import db
 from app.models import Titulo, User, Credor, Devedor
@@ -221,7 +221,7 @@ def registrar_protesto():
       404:
         description: Título não encontrado
     """
-    current_user = get_current_user()
+    current_user = g.user
     
     if not current_user:
         return jsonify({'message': 'Usuário não autenticado'}), 401
@@ -298,7 +298,7 @@ def cancelar_protesto(id):
       404:
         description: Protesto não encontrado
     """
-    current_user = get_current_user()
+    current_user = g.user
     
     if not current_user:
         return jsonify({'message': 'Usuário não autenticado'}), 401
@@ -382,3 +382,5 @@ def dashboard_protestos():
         'protestos_por_mes': meses_protestos,
         'valor_total': float(valor_total) if valor_total else 0
     }), 200
+
+

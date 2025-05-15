@@ -17,9 +17,10 @@ def init_db():
                 nome_completo='Administrador Sistema',
                 cargo='Administrador',
                 password='admin123',
-                ativo=True,
                 admin=True
             )
+            # O atributo self.ativo é definido como True por defeito no __init__ do modelo User.
+            # Se fosse necessário definir explicitamente, seria aqui: admin.ativo = True
             db.session.add(admin)
             db.session.commit()
             print("Usuário admin criado com sucesso!")

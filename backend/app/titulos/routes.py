@@ -1,5 +1,5 @@
-from flask import request, jsonify
-from app.auth.middleware import auth_required, get_current_user
+from flask import request, jsonify, g
+from app.auth.middleware import auth_required
 from sqlalchemy import or_, and_
 from datetime import datetime
 from app import db
@@ -235,7 +235,7 @@ def update_titulo_status(id):
       404:
         description: Título não encontrado
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     

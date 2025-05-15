@@ -2,8 +2,8 @@ import os
 import uuid
 from datetime import datetime
 import xmltodict
-from flask import request, jsonify, current_app
-from app.auth.middleware import auth_required, get_current_user
+from flask import request, jsonify, current_app, g
+from app.auth.middleware import auth_required
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, and_
 from app import db
@@ -51,7 +51,7 @@ def upload_remessa():
       415:
         description: Tipo de arquivo não suportado
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
@@ -187,7 +187,7 @@ def upload_desistencia():
       415:
         description: Tipo de arquivo não suportado
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
@@ -492,3 +492,4 @@ def get_estatisticas():
         'por_uf': {uf: total for uf, total in ufs},
         'total_titulos': total_titulos
     }), 200
+

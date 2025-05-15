@@ -1,12 +1,12 @@
 from datetime import datetime
-from flask import request, jsonify
-from app.auth.middleware import auth_required, get_current_user
+from flask import request, jsonify, g
+from app.auth.middleware import auth_required
 from sqlalchemy import or_, and_
 from app import db
 from app.models import Erro, Remessa, Titulo, User
 from . import erros
 
-@erros.route('/', methods=['GET'])
+@erros.route("/", methods=["GET"])
 @auth_required()
 def get_erros():
     """
@@ -62,41 +62,41 @@ def get_erros():
         description: Lista de erros
     """
     # Parâmetros de paginação
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
     
     # Construir query base
     query = Erro.query
     
     # Aplicar filtros
-    if request.args.get('tipo'):
-        query = query.filter(Erro.tipo == request.args.get('tipo'))
+    if request.args.get("tipo"):
+        query = query.filter(Erro.tipo == request.args.get("tipo"))
     
-    if request.args.get('remessa_id'):
-        query = query.filter(Erro.remessa_id == request.args.get('remessa_id'))
+    if request.args.get("remessa_id"):
+        query = query.filter(Erro.remessa_id == request.args.get("remessa_id"))
     
-    if request.args.get('titulo_id'):
-        query = query.filter(Erro.titulo_id == request.args.get('titulo_id'))
+    if request.args.get("titulo_id"):
+        query = query.filter(Erro.titulo_id == request.args.get("titulo_id"))
     
-    if request.args.get('resolvido') is not None:
-        resolvido = request.args.get('resolvido').lower() == 'true'
+    if request.args.get("resolvido") is not None:
+        resolvido = request.args.get("resolvido").lower() == "true"
         query = query.filter(Erro.resolvido == resolvido)
     
     # Filtro por data
-    if request.args.get('data_inicio'):
+    if request.args.get("data_inicio"):
         try:
-            data_inicio = datetime.strptime(request.args.get('data_inicio'), '%Y-%m-%d')
+            data_inicio = datetime.strptime(request.args.get("data_inicio"), "%Y-%m-%d")
             query = query.filter(Erro.data_ocorrencia >= data_inicio)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
-    if request.args.get('data_fim'):
+    if request.args.get("data_fim"):
         try:
-            data_fim = datetime.strptime(request.args.get('data_fim'), '%Y-%m-%d')
+            data_fim = datetime.strptime(request.args.get("data_fim"), "%Y-%m-%d")
             # Adicionar 1 dia para incluir todo o dia final
             query = query.filter(Erro.data_ocorrencia <= data_fim)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
     # Executar query com paginação
     paginated_erros = query.order_by(Erro.data_ocorrencia.desc()).paginate(page=page, per_page=per_page)
@@ -108,41 +108,41 @@ def get_erros():
         
         # Adicionar dados da remessa
         if erro.remessa:
-            item['remessa'] = {
-                'id': erro.remessa.id,
-                'nome_arquivo': erro.remessa.nome_arquivo,
-                'data_envio': erro.remessa.data_envio.isoformat() if erro.remessa.data_envio else None,
-                'status': erro.remessa.status
+            item["remessa"] = {
+                "id": erro.remessa.id,
+                "nome_arquivo": erro.remessa.nome_arquivo,
+                "data_envio": erro.remessa.data_envio.isoformat() if erro.remessa.data_envio else None,
+                "status": erro.remessa.status
             }
         
         # Adicionar dados do título
         if erro.titulo:
-            item['titulo'] = {
-                'id': erro.titulo.id,
-                'numero': erro.titulo.numero,
-                'protocolo': erro.titulo.protocolo,
-                'valor': float(erro.titulo.valor) if erro.titulo.valor else None,
-                'status': erro.titulo.status
+            item["titulo"] = {
+                "id": erro.titulo.id,
+                "numero": erro.titulo.numero,
+                "protocolo": erro.titulo.protocolo,
+                "valor": float(erro.titulo.valor) if erro.titulo.valor else None,
+                "status": erro.titulo.status
             }
         
         # Adicionar dados do usuário que resolveu
         if erro.usuario_resolucao:
-            item['usuario_resolucao'] = {
-                'id': erro.usuario_resolucao.id,
-                'nome_completo': erro.usuario_resolucao.nome_completo
+            item["usuario_resolucao"] = {
+                "id": erro.usuario_resolucao.id,
+                "nome_completo": erro.usuario_resolucao.nome_completo
             }
         
         items.append(item)
     
     return jsonify({
-        'items': items,
-        'total': paginated_erros.total,
-        'page': page,
-        'per_page': per_page,
-        'pages': paginated_erros.pages
+        "items": items,
+        "total": paginated_erros.total,
+        "page": page,
+        "per_page": per_page,
+        "pages": paginated_erros.pages
     }), 200
 
-@erros.route('/<int:id>', methods=['GET'])
+@erros.route("/<int:id>", methods=["GET"])
 @auth_required()
 def get_erro(id):
     """
@@ -167,34 +167,34 @@ def get_erro(id):
     erro = Erro.query.get(id)
     
     if not erro:
-        return jsonify({'message': 'Erro não encontrado'}), 404
+        return jsonify({"message": "Erro não encontrado"}), 404
     
     # Obter dados relacionados
     erro_dict = erro.to_dict()
     
     # Adicionar dados da remessa
     if erro.remessa:
-        erro_dict['remessa'] = erro.remessa.to_dict()
+        erro_dict["remessa"] = erro.remessa.to_dict()
     
     # Adicionar dados do título
     if erro.titulo:
-        erro_dict['titulo'] = erro.titulo.to_dict()
+        erro_dict["titulo"] = erro.titulo.to_dict()
         
         # Adicionar dados do devedor
         if erro.titulo.devedor:
-            erro_dict['devedor'] = erro.titulo.devedor.to_dict()
+            erro_dict["devedor"] = erro.titulo.devedor.to_dict()
     
     # Adicionar dados do usuário que resolveu
     if erro.usuario_resolucao:
-        erro_dict['usuario_resolucao'] = {
-            'id': erro.usuario_resolucao.id,
-            'nome_completo': erro.usuario_resolucao.nome_completo,
-            'email': erro.usuario_resolucao.email
+        erro_dict["usuario_resolucao"] = {
+            "id": erro.usuario_resolucao.id,
+            "nome_completo": erro.usuario_resolucao.nome_completo,
+            "email": erro.usuario_resolucao.email
         }
     
     return jsonify(erro_dict), 200
 
-@erros.route('/<int:id>/resolver', methods=['PUT'])
+@erros.route("/<int:id>/resolver", methods=["PUT"])
 @auth_required()
 def resolver_erro(id):
     """
@@ -223,21 +223,21 @@ def resolver_erro(id):
       404:
         description: Erro não encontrado
     """
-    current_user = get_current_user()
+    current_user = g.user
     user_id = current_user.id if current_user else None
     current_user = User.query.get(user_id)
     
     if not current_user:
-        return jsonify({'message': 'Usuário não encontrado'}), 404
+        return jsonify({"message": "Usuário não encontrado"}), 404
     
     erro = Erro.query.get(id)
     
     if not erro:
-        return jsonify({'message': 'Erro não encontrado'}), 404
+        return jsonify({"message": "Erro não encontrado"}), 404
     
     # Verificar se o erro já foi resolvido
     if erro.resolvido:
-        return jsonify({'message': 'Este erro já foi resolvido'}), 400
+        return jsonify({"message": "Este erro já foi resolvido"}), 400
     
     data = request.get_json() or {}
     
@@ -247,7 +247,7 @@ def resolver_erro(id):
     erro.usuario_resolucao_id = current_user.id
     
     # Adicionar observação à mensagem de erro
-    if 'observacao' in data and data['observacao']:
+    if "observacao" in data and data["observacao"]:
         erro.mensagem = f"{erro.mensagem}\n\nResolução ({datetime.utcnow().strftime('%d/%m/%Y %H:%M')}): {data['observacao']}"
     
     db.session.commit()
@@ -259,17 +259,17 @@ def resolver_erro(id):
         # Se não houver mais erros pendentes e a remessa estiver com status de erro, atualizar para processado
         if erros_pendentes == 0:
             remessa = Remessa.query.get(erro.remessa_id)
-            if remessa and remessa.status == 'Erro':
-                remessa.status = 'Processado'
+            if remessa and remessa.status == "Erro":
+                remessa.status = "Processado"
                 remessa.data_processamento = datetime.utcnow()
                 db.session.commit()
     
     return jsonify({
-        'message': 'Erro marcado como resolvido',
-        'erro': erro.to_dict()
+        "message": "Erro marcado como resolvido",
+        "erro": erro.to_dict()
     }), 200
 
-@erros.route('/estatisticas', methods=['GET'])
+@erros.route("/estatisticas", methods=["GET"])
 @auth_required()
 def get_estatisticas():
     """
@@ -284,9 +284,9 @@ def get_estatisticas():
         description: Estatísticas dos erros
     """
     # Total de erros por tipo
-    total_validacao = Erro.query.filter_by(tipo='Validação').count()
-    total_processamento = Erro.query.filter_by(tipo='Processamento').count()
-    total_sistema = Erro.query.filter_by(tipo='Sistema').count()
+    total_validacao = Erro.query.filter_by(tipo="Validação").count()
+    total_processamento = Erro.query.filter_by(tipo="Processamento").count()
+    total_sistema = Erro.query.filter_by(tipo="Sistema").count()
     
     # Total por status de resolução
     total_resolvidos = Erro.query.filter_by(resolvido=True).count()
@@ -299,31 +299,31 @@ def get_estatisticas():
     erros_por_remessa = db.session.query(
         Erro.remessa_id, 
         Remessa.nome_arquivo,
-        db.func.count(Erro.id).label('total')
+        db.func.count(Erro.id).label("total")
     ).join(Remessa, Erro.remessa_id == Remessa.id)\
     .group_by(Erro.remessa_id, Remessa.nome_arquivo)\
     .order_by(db.func.count(Erro.id).desc())\
     .limit(5).all()
     
     return jsonify({
-        'total_erros': total_erros,
-        'por_tipo': {
-            'validacao': total_validacao,
-            'processamento': total_processamento,
-            'sistema': total_sistema
+        "total_erros": total_erros,
+        "por_tipo": {
+            "validacao": total_validacao,
+            "processamento": total_processamento,
+            "sistema": total_sistema
         },
-        'por_status': {
-            'resolvidos': total_resolvidos,
-            'pendentes': total_pendentes
+        "por_status": {
+            "resolvidos": total_resolvidos,
+            "pendentes": total_pendentes
         },
-        'por_remessa': [{
-            'remessa_id': remessa_id,
-            'nome_arquivo': nome_arquivo,
-            'total': total
+        "por_remessa": [{
+            "remessa_id": remessa_id,
+            "nome_arquivo": nome_arquivo,
+            "total": total
         } for remessa_id, nome_arquivo, total in erros_por_remessa]
     }), 200
 
-@erros.route('/', methods=['POST'])
+@erros.route("/", methods=["POST"])
 @auth_required()
 def create_erro():
     """
@@ -366,47 +366,48 @@ def create_erro():
     data = request.get_json() or {}
     
     # Validar campos obrigatórios
-    if 'tipo' not in data or 'mensagem' not in data:
-        return jsonify({'message': 'Os campos tipo e mensagem são obrigatórios'}), 400
+    if "tipo" not in data or "mensagem" not in data:
+        return jsonify({"message": "Os campos tipo e mensagem são obrigatórios"}), 400
     
     # Validar tipo de erro
-    tipos_validos = ['Validação', 'Processamento', 'Sistema']
-    if data['tipo'] not in tipos_validos:
-        return jsonify({'message': f'Tipo de erro inválido. Valores aceitos: {", ".join(tipos_validos)}'}), 400
+    tipos_validos = ["Validação", "Processamento", "Sistema"]
+    if data["tipo"] not in tipos_validos:
+        return jsonify({"message": f"Tipo de erro inválido. Valores aceitos: {', '.join(tipos_validos)}"}), 400
     
     # Verificar se a remessa existe, se fornecida
-    if 'remessa_id' in data and data['remessa_id']:
-        remessa = Remessa.query.get(data['remessa_id'])
+    if "remessa_id" in data and data["remessa_id"]:
+        remessa = Remessa.query.get(data["remessa_id"])
         if not remessa:
-            return jsonify({'message': 'Remessa não encontrada'}), 404
+            return jsonify({"message": "Remessa não encontrada"}), 404
     
     # Verificar se o título existe, se fornecido
-    if 'titulo_id' in data and data['titulo_id']:
-        titulo = Titulo.query.get(data['titulo_id'])
+    if "titulo_id" in data and data["titulo_id"]:
+        titulo = Titulo.query.get(data["titulo_id"])
         if not titulo:
-            return jsonify({'message': 'Título não encontrado'}), 404
+            return jsonify({"message": "Título não encontrado"}), 404
     
     # Criar novo erro
     novo_erro = Erro(
-        remessa_id=data.get('remessa_id'),
-        titulo_id=data.get('titulo_id'),
-        tipo=data['tipo'],
-        mensagem=data['mensagem'],
+        remessa_id=data.get("remessa_id"),
+        titulo_id=data.get("titulo_id"),
+        tipo=data["tipo"],
+        mensagem=data["mensagem"],
         data_ocorrencia=datetime.utcnow(),
         resolvido=False
     )
     
-    # Atualizar status da remessa para 'Erro' se fornecida
-    if 'remessa_id' in data and data['remessa_id']:
-        remessa = Remessa.query.get(data['remessa_id'])
-        if remessa and remessa.status != 'Erro':
-            remessa.status = 'Erro'
+    # Atualizar status da remessa para "Erro" se fornecida
+    if "remessa_id" in data and data["remessa_id"]:
+        remessa = Remessa.query.get(data["remessa_id"])
+        if remessa and remessa.status != "Erro":
+            remessa.status = "Erro"
             db.session.add(remessa)
     
     db.session.add(novo_erro)
     db.session.commit()
     
     return jsonify({
-        'message': 'Erro registrado com sucesso',
-        'erro': novo_erro.to_dict()
+        "message": "Erro registrado com sucesso",
+        "erro": novo_erro.to_dict()
     }), 201
+
