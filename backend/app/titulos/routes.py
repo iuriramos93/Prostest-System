@@ -1,13 +1,14 @@
 from flask import request, jsonify, g
-from app.auth.middleware import auth_required
+# Removida a importação de get_current_user de app.auth.middleware
+from app.auth.middleware import auth_required 
 from sqlalchemy import or_, and_
 from datetime import datetime
 from app import db
-from app.models import Titulo, User, Credor, Devedor
+from app.models import Titulo, User, Credor, Devedor # User pode não ser necessário aqui diretamente, mas g.user será do tipo User
 from . import titulos
 
-@titulos.route('/', methods=['GET'])
-@auth_required()
+@titulos.route("/")
+@auth_required() # Não especifica admin_required, então qualquer usuário autenticado pode acessar
 def get_titulos():
     """
     Lista títulos com filtros opcionais
@@ -15,7 +16,7 @@ def get_titulos():
     tags:
       - Títulos
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - name: numero
         in: query
@@ -60,47 +61,43 @@ def get_titulos():
     responses:
       200:
         description: Lista de títulos
+      401:
+        description: Não autenticado
     """
-    # Parâmetros de paginação
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
     
-    # Construir query base
     query = Titulo.query
     
-    # Aplicar filtros
-    if request.args.get('numero'):
-        query = query.filter(Titulo.numero.ilike(f'%{request.args.get("numero")}%'))
+    if request.args.get("numero"):
+        query = query.filter(Titulo.numero.ilike(f"%{request.args.get('numero')}%"'))
     
-    if request.args.get('protocolo'):
-        query = query.filter(Titulo.protocolo.ilike(f'%{request.args.get("protocolo")}%'))
+    if request.args.get("protocolo"):
+        query = query.filter(Titulo.protocolo.ilike(f"%{request.args.get('protocolo')}%"'))
     
-    if request.args.get('status'):
-        query = query.filter(Titulo.status == request.args.get('status'))
+    if request.args.get("status"):
+        query = query.filter(Titulo.status == request.args.get("status"))
     
-    # Filtro por data
-    if request.args.get('data_inicio'):
+    if request.args.get("data_inicio"):
         try:
-            data_inicio = datetime.strptime(request.args.get('data_inicio'), '%Y-%m-%d').date()
+            data_inicio = datetime.strptime(request.args.get("data_inicio"), "%Y-%m-%d").date()
             query = query.filter(Titulo.data_emissao >= data_inicio)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
-    if request.args.get('data_fim'):
+    if request.args.get("data_fim"):
         try:
-            data_fim = datetime.strptime(request.args.get('data_fim'), '%Y-%m-%d').date()
+            data_fim = datetime.strptime(request.args.get("data_fim"), "%Y-%m-%d").date()
             query = query.filter(Titulo.data_emissao <= data_fim)
         except ValueError:
-            return jsonify({'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
-    # Filtro por devedor (nome ou documento)
-    if request.args.get('devedor'):
-        devedor_termo = request.args.get('devedor')
-        # Buscar IDs de devedores que correspondem ao termo
+    if request.args.get("devedor"):
+        devedor_termo = request.args.get("devedor")
         devedores_ids = db.session.query(Devedor.id).filter(
             or_(
-                Devedor.nome.ilike(f'%{devedor_termo}%'),
-                Devedor.documento.ilike(f'%{devedor_termo}%')
+                Devedor.nome.ilike(f"%{devedor_termo}%"),
+                Devedor.documento.ilike(f"%{devedor_termo}%")
             )
         ).all()
         devedores_ids = [d[0] for d in devedores_ids]
@@ -108,28 +105,25 @@ def get_titulos():
         if devedores_ids:
             query = query.filter(Titulo.devedor_id.in_(devedores_ids))
         else:
-            # Se não encontrar nenhum devedor, retornar lista vazia
             return jsonify({
-                'items': [],
-                'total': 0,
-                'page': page,
-                'per_page': per_page,
-                'pages': 0
+                "items": [],
+                "total": 0,
+                "page": page,
+                "per_page": per_page,
+                "pages": 0
             }), 200
     
-    # Executar query com paginação
-    paginated_titulos = query.order_by(Titulo.data_cadastro.desc()).paginate(page=page, per_page=per_page)
+    paginated_titulos = query.order_by(Titulo.data_cadastro.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
-    # Formatar resposta
     return jsonify({
-        'items': [titulo.to_dict() for titulo in paginated_titulos.items],
-        'total': paginated_titulos.total,
-        'page': page,
-        'per_page': per_page,
-        'pages': paginated_titulos.pages
+        "items": [titulo.to_dict() for titulo in paginated_titulos.items],
+        "total": paginated_titulos.total,
+        "page": page,
+        "per_page": per_page,
+        "pages": paginated_titulos.pages
     }), 200
 
-@titulos.route('/<int:id>', methods=['GET'])
+@titulos.route("/<int:id>")
 @auth_required()
 def get_titulo(id):
     """
@@ -138,7 +132,7 @@ def get_titulo(id):
     tags:
       - Títulos
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - name: id
         in: path
@@ -150,57 +144,51 @@ def get_titulo(id):
         description: Detalhes do título
       404:
         description: Título não encontrado
+      401:
+        description: Não autenticado
     """
     titulo = Titulo.query.get(id)
     
     if not titulo:
-        return jsonify({'message': 'Título não encontrado'}), 404
+        return jsonify({"message": "Título não encontrado"}), 404
     
-    # Obter dados relacionados
     titulo_dict = titulo.to_dict()
     
-    # Adicionar dados do credor
     if titulo.credor:
-        titulo_dict['credor'] = titulo.credor.to_dict()
+        titulo_dict["credor"] = titulo.credor.to_dict()
     
-    # Adicionar dados do devedor
     if titulo.devedor:
-        titulo_dict['devedor'] = titulo.devedor.to_dict()
+        titulo_dict["devedor"] = titulo.devedor.to_dict()
     
-    # Adicionar dados da remessa
     if titulo.remessa:
-        titulo_dict['remessa'] = {
-            'id': titulo.remessa.id,
-            'nome_arquivo': titulo.remessa.nome_arquivo,
-            'data_envio': titulo.remessa.data_envio.isoformat() if titulo.remessa.data_envio else None,
-            'status': titulo.remessa.status
+        titulo_dict["remessa"] = {
+            "id": titulo.remessa.id,
+            "nome_arquivo": titulo.remessa.nome_arquivo,
+            "data_envio": titulo.remessa.data_envio.isoformat() if titulo.remessa.data_envio else None,
+            "status": titulo.remessa.status
         }
     
-    # Adicionar histórico de desistências
     desistencias = []
     for d in titulo.desistencias:
         desistencia = d.to_dict()
         if d.usuario:
-            desistencia['usuario'] = {
-                'id': d.usuario.id,
-                'nome_completo': d.usuario.nome_completo
+            desistencia["usuario"] = {
+                "id": d.usuario.id,
+                "nome_completo": d.usuario.nome_completo
             }
         desistencias.append(desistencia)
+    titulo_dict["desistencias"] = desistencias
     
-    titulo_dict['desistencias'] = desistencias
-    
-    # Adicionar erros relacionados
     erros = []
     for e in titulo.erros:
         erro = e.to_dict()
         erros.append(erro)
-    
-    titulo_dict['erros'] = erros
+    titulo_dict["erros"] = erros
     
     return jsonify(titulo_dict), 200
 
-@titulos.route('/<int:id>/status', methods=['PUT'])
-@auth_required()
+@titulos.route("/<int:id>/status", methods=["PUT"])
+@auth_required() # Por padrão, qualquer usuário autenticado. Se precisar de admin, use @auth_required(admin_required=True)
 def update_titulo_status(id):
     """
     Atualiza o status de um título
@@ -208,7 +196,7 @@ def update_titulo_status(id):
     tags:
       - Títulos
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     parameters:
       - name: id
         in: path
@@ -234,45 +222,42 @@ def update_titulo_status(id):
         description: Dados inválidos
       404:
         description: Título não encontrado
+      401:
+        description: Não autenticado
+      403:
+        description: Acesso negado (se admin_required fosse True e usuário não fosse admin)
     """
-    current_user = g.user
-    user_id = current_user.id if current_user else None
-    current_user = User.query.get(user_id)
-    
-    if not current_user:
-        return jsonify({'message': 'Usuário não encontrado'}), 404
-    
+    # current_user = getattr(g, "user", None) # g.user é populado pelo middleware auth_required
+    # if not current_user: 
+    #     # Esta verificação é redundante se @auth_required estiver funcionando
+    #     return jsonify({"message": "Usuário não autenticado"}), 401
+
     titulo = Titulo.query.get(id)
-    
     if not titulo:
-        return jsonify({'message': 'Título não encontrado'}), 404
+        return jsonify({"message": "Título não encontrado"}), 404
     
     data = request.get_json()
+    if not data or "status" not in data:
+        return jsonify({"message": "Status não informado"}), 400
     
-    if not data or 'status' not in data:
-        return jsonify({'message': 'Status não informado'}), 400
+    status = data["status"]
+    if status not in ["Protestado", "Pendente", "Pago"]:
+        return jsonify({"message": "Status inválido"}), 400
     
-    # Validar status
-    status = data['status']
-    if status not in ['Protestado', 'Pendente', 'Pago']:
-        return jsonify({'message': 'Status inválido'}), 400
-    
-    # Atualizar status
     titulo.status = status
     titulo.data_atualizacao = datetime.utcnow()
     
-    # Se o status for Protestado, atualizar a data de protesto
-    if status == 'Protestado' and not titulo.data_protesto:
+    if status == "Protestado" and not titulo.data_protesto:
         titulo.data_protesto = datetime.utcnow().date()
     
     db.session.commit()
     
     return jsonify({
-        'message': 'Status atualizado com sucesso',
-        'titulo': titulo.to_dict()
+        "message": "Status atualizado com sucesso",
+        "titulo": titulo.to_dict()
     }), 200
 
-@titulos.route('/estatisticas', methods=['GET'])
+@titulos.route("/estatisticas")
 @auth_required()
 def get_estatisticas():
     """
@@ -281,38 +266,35 @@ def get_estatisticas():
     tags:
       - Títulos
     security:
-      - JWT: []
+      - BasicAuth: [] # Atualizado para BasicAuth
     responses:
       200:
         description: Estatísticas dos títulos
+      401:
+        description: Não autenticado
     """
-    # Total de títulos por status
-    total_protestados = Titulo.query.filter_by(status='Protestado').count()
-    total_pendentes = Titulo.query.filter_by(status='Pendente').count()
-    total_pagos = Titulo.query.filter_by(status='Pago').count()
-    
-    # Total geral
+    total_protestados = Titulo.query.filter_by(status="Protestado").count()
+    total_pendentes = Titulo.query.filter_by(status="Pendente").count()
+    total_pagos = Titulo.query.filter_by(status="Pago").count()
     total_titulos = Titulo.query.count()
     
-    # Valor total por status
-    valor_protestados = db.session.query(db.func.sum(Titulo.valor)).filter_by(status='Protestado').scalar() or 0
-    valor_pendentes = db.session.query(db.func.sum(Titulo.valor)).filter_by(status='Pendente').scalar() or 0
-    valor_pagos = db.session.query(db.func.sum(Titulo.valor)).filter_by(status='Pago').scalar() or 0
-    
-    # Valor total geral
+    valor_protestados = db.session.query(db.func.sum(Titulo.valor)).filter_by(status="Protestado").scalar() or 0
+    valor_pendentes = db.session.query(db.func.sum(Titulo.valor)).filter_by(status="Pendente").scalar() or 0
+    valor_pagos = db.session.query(db.func.sum(Titulo.valor)).filter_by(status="Pago").scalar() or 0
     valor_total = db.session.query(db.func.sum(Titulo.valor)).scalar() or 0
     
     return jsonify({
-        'total_titulos': total_titulos,
-        'por_status': {
-            'protestados': total_protestados,
-            'pendentes': total_pendentes,
-            'pagos': total_pagos
+        "total_titulos": total_titulos,
+        "por_status": {
+            "protestados": total_protestados,
+            "pendentes": total_pendentes,
+            "pagos": total_pagos
         },
-        'valor_total': float(valor_total),
-        'valor_por_status': {
-            'protestados': float(valor_protestados),
-            'pendentes': float(valor_pendentes),
-            'pagos': float(valor_pagos)
+        "valor_total": float(valor_total),
+        "valor_por_status": {
+            "protestados": float(valor_protestados),
+            "pendentes": float(valor_pendentes),
+            "pagos": float(valor_pagos)
         }
     }), 200
+

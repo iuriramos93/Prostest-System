@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api } from "./api";
 
 export interface Relatorio {
   id: number;
@@ -27,34 +27,12 @@ export interface DashboardData {
 class RelatoriosService {
   async listarRelatorios(filtros?: RelatorioFiltro) {
     try {
-      const response = await api.get('/api/relatorios', { params: filtros });
+      const response = await api.get("/api/relatorios", { params: filtros });
       return response.data;
     } catch (error: any) {
-      console.error('Erro ao listar relatórios:', error);
-      
-      // Se o servidor não estiver disponível, retornar dados simulados para o dashboard
-      if (error.code === 'ERR_NETWORK' && filtros?.tipo === 'dashboard') {
-        console.log('Servidor indisponível, usando dados simulados para o dashboard');
-        return {
-          titulos_por_status: {
-            'Pendente': 150,
-            'Processado': 300,
-            'Erro': 50,
-            'Cancelado': 100
-          },
-          remessas_por_mes: [
-            { mes: 'Jan', quantidade: 45 },
-            { mes: 'Fev', quantidade: 52 },
-            { mes: 'Mar', quantidade: 48 },
-            { mes: 'Abr', quantidade: 55 },
-            { mes: 'Mai', quantidade: 60 },
-            { mes: 'Jun', quantidade: 58 }
-          ],
-          valor_total_protestado: 1500000.00,
-          taxa_sucesso_processamento: 85.5
-        };
-      }
-      
+      console.error("Erro ao listar relatórios:", error);
+      // Lógica de fallback para dados simulados foi removida.
+      // O erro agora será lançado para ser tratado pelo componente que chamou esta função.
       throw error;
     }
   }
@@ -64,7 +42,7 @@ class RelatoriosService {
       const response = await api.post(`/api/relatorios/${id}/gerar`, parametros);
       return response.data;
     } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
+      console.error("Erro ao gerar relatório:", error);
       throw error;
     }
   }
@@ -72,21 +50,21 @@ class RelatoriosService {
   async downloadRelatorio(id: number) {
     try {
       const response = await api.get(`/api/relatorios/${id}/download`, {
-        responseType: 'blob'
+        responseType: "blob"
       });
       return response.data;
     } catch (error) {
-      console.error('Erro ao baixar relatório:', error);
+      console.error("Erro ao baixar relatório:", error);
       throw error;
     }
   }
 
   async criarRelatorio(relatorio: Partial<Relatorio>) {
     try {
-      const response = await api.post('/api/relatorios', relatorio);
+      const response = await api.post("/api/relatorios", relatorio);
       return response.data;
     } catch (error) {
-      console.error('Erro ao criar relatório:', error);
+      console.error("Erro ao criar relatório:", error);
       throw error;
     }
   }
@@ -96,7 +74,7 @@ class RelatoriosService {
       const response = await api.put(`/api/relatorios/${id}`, relatorio);
       return response.data;
     } catch (error) {
-      console.error('Erro ao atualizar relatório:', error);
+      console.error("Erro ao atualizar relatório:", error);
       throw error;
     }
   }
@@ -105,10 +83,11 @@ class RelatoriosService {
     try {
       await api.delete(`/api/relatorios/${id}`);
     } catch (error) {
-      console.error('Erro ao excluir relatório:', error);
+      console.error("Erro ao excluir relatório:", error);
       throw error;
     }
   }
 }
 
 export const relatoriosService = new RelatoriosService();
+
