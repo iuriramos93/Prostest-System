@@ -35,17 +35,17 @@ export default defineConfig({
   },
   server: {
     // Configurações do servidor de desenvolvimento
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 5173,
     strictPort: true,
     cors: true,
     hmr: {
-      clientPort: 3002,
+      clientPort: 5173,
       timeout: 5000
     },
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

@@ -68,15 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<User | null> => {
     setIsLoading(true);
     try {
-      // A autenticação Basic será adicionada pelo interceptor do axiosApiInstance
-      // O endpoint de login deve validar as credenciais e retornar os dados do usuário se sucesso
       const response = await axiosApiInstance.post("/api/auth/login", {
-        // O backend espera as credenciais no header Basic Auth, não no corpo para este endpoint.
-        // No entanto, podemos enviar o email para identificação se o backend precisar,
-        // ou apenas fazer uma requisição GET/POST para um endpoint protegido que valide o Basic Auth.
-        // Para um login "explícito" que retorna dados do usuário, o backend pode esperar um POST.
-        // Se o backend validar o Basic Auth e retornar dados do usuário em caso de sucesso:
-        email: email, // Pode ser usado pelo backend para buscar o usuário antes de validar a senha do Basic Auth
+        email: email,
+        password: password // Adicionando o password ao corpo da requisição
       });
 
       if (response.status === 200 && response.data && response.data.user) {
