@@ -69,35 +69,40 @@ def get_titulos():
     
     query = Titulo.query
     
-    if request.args.get("numero"):
-        query = query.filter(Titulo.numero.ilike(f"%{request.args.get('numero')}%"'))
+    numero_arg = request.args.get("numero")
+    if numero_arg:
+        query = query.filter(Titulo.numero.ilike(f"%{numero_arg}%"))
     
-    if request.args.get("protocolo"):
-        query = query.filter(Titulo.protocolo.ilike(f"%{request.args.get('protocolo')}%"'))
+    protocolo_arg = request.args.get("protocolo")
+    if protocolo_arg:
+        query = query.filter(Titulo.protocolo.ilike(f"%{protocolo_arg}%"))
     
-    if request.args.get("status"):
-        query = query.filter(Titulo.status == request.args.get("status"))
+    status_arg = request.args.get("status")
+    if status_arg:
+        query = query.filter(Titulo.status == status_arg)
     
-    if request.args.get("data_inicio"):
+    data_inicio_arg = request.args.get("data_inicio")
+    if data_inicio_arg:
         try:
-            data_inicio = datetime.strptime(request.args.get("data_inicio"), "%Y-%m-%d").date()
+            data_inicio = datetime.strptime(data_inicio_arg, "%Y-%m-%d").date()
             query = query.filter(Titulo.data_emissao >= data_inicio)
         except ValueError:
             return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
-    if request.args.get("data_fim"):
+    data_fim_arg = request.args.get("data_fim")
+    if data_fim_arg:
         try:
-            data_fim = datetime.strptime(request.args.get("data_fim"), "%Y-%m-%d").date()
+            data_fim = datetime.strptime(data_fim_arg, "%Y-%m-%d").date()
             query = query.filter(Titulo.data_emissao <= data_fim)
         except ValueError:
             return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD"}), 400
     
-    if request.args.get("devedor"):
-        devedor_termo = request.args.get("devedor")
+    devedor_arg = request.args.get("devedor")
+    if devedor_arg:
         devedores_ids = db.session.query(Devedor.id).filter(
             or_(
-                Devedor.nome.ilike(f"%{devedor_termo}%"),
-                Devedor.documento.ilike(f"%{devedor_termo}%")
+                Devedor.nome.ilike(f"%{devedor_arg}%"),
+                Devedor.documento.ilike(f"%{devedor_arg}%")
             )
         ).all()
         devedores_ids = [d[0] for d in devedores_ids]
@@ -227,11 +232,6 @@ def update_titulo_status(id):
       403:
         description: Acesso negado (se admin_required fosse True e usuário não fosse admin)
     """
-    # current_user = getattr(g, "user", None) # g.user é populado pelo middleware auth_required
-    # if not current_user: 
-    #     # Esta verificação é redundante se @auth_required estiver funcionando
-    #     return jsonify({"message": "Usuário não autenticado"}), 401
-
     titulo = Titulo.query.get(id)
     if not titulo:
         return jsonify({"message": "Título não encontrado"}), 404
@@ -297,4 +297,5 @@ def get_estatisticas():
             "pagos": float(valor_pagos)
         }
     }), 200
+
 
