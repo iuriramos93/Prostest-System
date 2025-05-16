@@ -99,7 +99,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
    User=www-data
    WorkingDirectory=/path/to/ProtestSystem/backend
    Environment="PATH=/path/to/ProtestSystem/backend/venv/bin"
-   ExecStart=/path/to/ProtestSystem/backend/venv/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 wsgi:app
+   ExecStart=/path/to/ProtestSystem/backend/venv/bin/gunicorn --workers 4 --bind 127.0.0.1:5001 wsgi:app
    Restart=always
 
    [Install]
@@ -133,7 +133,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
        }
 
        location /api {
-           proxy_pass http://127.0.0.1:5000;
+           proxy_pass http://127.0.0.1:5001;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
        }
@@ -211,7 +211,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
        }
 
        location /api {
-           proxy_pass http://127.0.0.1:5000;
+           proxy_pass http://127.0.0.1:5001;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -263,7 +263,7 @@ Este documento fornece instruções detalhadas para implantação do Sistema de 
      - job_name: 'protest-system'
        scrape_interval: 15s
        static_configs:
-         - targets: ['127.0.0.1:5000']
+         - targets: ['127.0.0.1:5001']
    ```
 
 3. Configure dashboards no Grafana para visualizar métricas.
@@ -397,10 +397,10 @@ docker-compose ps
 docker-compose exec db psql -U postgres -d protest_system -c "\dt"
 
 # 7. Testar API
-curl http://127.0.0.1:5000/api/health
+curl http://127.0.0.1:5001/api/health
 
 # 8. Testar login
-curl -X POST http://127.0.0.1:5000/api/auth/login \
+curl -X POST http://127.0.0.1:5001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"admin123"}'
 
