@@ -34,7 +34,7 @@ RUN mkdir -p logs && chown -R appuser:appuser logs
 USER appuser
 
 # Expor a porta
-EXPOSE 5000
+EXPOSE 5001
 
 # Script de inicialização (já copiado e com permissão de execução)
 # COPY scripts/init_db.py /app/scripts/init_db.py
@@ -43,7 +43,7 @@ EXPOSE 5000
 # HEALTHCHECK para verificar se a aplicação está respondendo
 # Supõe que você tenha um endpoint /health no seu app Flask que retorna 200 OK
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:5000/health || exit 1
+  CMD curl -f http://localhost:5001/health || exit 1
 
 # Comando para iniciar a aplicação
-CMD ["sh", "-c", "python /app/scripts/init_db.py && gunicorn --bind 0.0.0.0:5000 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} wsgi:app"]
+CMD ["sh", "-c", "python /app/scripts/init_db.py && gunicorn --bind 0.0.0.0:5001 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} wsgi:app"]

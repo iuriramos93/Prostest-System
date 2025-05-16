@@ -39,7 +39,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${API_PORT:-5000}:5000"
+      - "${API_PORT:-5001}:5001"
     volumes:
       # Em desenvolvimento, montamos o código para hot-reloading.
       - ./backend:/app
@@ -68,20 +68,20 @@ services:
       - protestsystem-network
 
   # Serviço do PGAdmin (Opcional, principalmente para desenvolvimento/gerenciamento)
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: protestsystem-pgadmin
-    restart: always
-    env_file:
-      - .env # Carrega variáveis de .env
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-    depends_on:
-      - db
-    networks:
-      - protestsystem-network
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: protestsystem-pgadmin
+  #   restart: always
+  #   env_file:
+  #     - .env # Carrega variáveis de .env
+  #   ports:
+  #     - "${PGADMIN_PORT:-5050}:80"
+  #   volumes:
+  #     - pgadmin-data:/var/lib/pgadmin
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - protestsystem-network
 
 volumes:
   pgdata: # Volume nomeado para persistência dos dados do PostgreSQL

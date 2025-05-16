@@ -34,7 +34,7 @@ services:
       SESSION_COOKIE_SECURE: "True"
       SESSION_COOKIE_HTTPONLY: "True"
     ports:
-      - "5000:5000"
+      - "5000:5001"
     volumes:
       - ./backend:/app
     networks:

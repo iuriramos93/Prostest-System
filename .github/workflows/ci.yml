@@ -2,9 +2,9 @@ name: CI Docker Build
 
 on:
   push:
-    branches: [ "main", "develop" ] # Adapte para suas branches principais
+    branches: ["main", "develop"] # Adapte para suas branches principais
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
 
 jobs:
   build_docker_images:
@@ -42,6 +42,7 @@ jobs:
           push: false # Não faz push para um registry por padrão
           tags: protestsystem-frontend:latest # Tag da imagem
 
+
       # Adicionar etapa de teste para o frontend aqui, se houver comandos
       # - name: Run Frontend Tests
       #   run: |
@@ -55,10 +56,8 @@ jobs:
       # - name: Run Integration Tests (exemplo)
       #   run: |
       #     echo "Comandos para rodar testes de integração aqui"
-      #     # Exemplo: curl http://localhost:5000/api/health
+      #     # Exemplo: curl http://localhost:5001/api/health
       #
       # - name: Stop services
       #   if: always() # Garante que os serviços sejam parados mesmo se os testes falharem
       #   run: docker-compose -f docker-compose.yml down
-
-
