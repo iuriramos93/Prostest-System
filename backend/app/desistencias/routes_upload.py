@@ -13,11 +13,11 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'xml', 'pdf', 'doc', 'docx'}
 
-@desistencias.route('/', methods=['POST'])
+@desistencias.route('/upload', methods=['POST'])
 @auth_required()
-def create_desistencia():
+def upload_desistencia_file():
     """
-    Cria uma nova solicitação de desistência
+    Faz upload de um arquivo de desistência
     ---
     tags:
       - Desistências
@@ -108,5 +108,3 @@ def create_desistencia():
         'motivo': desistencia.motivo,
         'status': 'PENDENTE'
     }), 201
-
-# Manter as rotas existentes abaixo

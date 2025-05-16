@@ -108,7 +108,7 @@ export const desistenciaService = {
   enviarDesistencia: async (formData: FormData) => {
     try {
       // Atualizado para usar o endpoint correto
-      const response = await api.post('/api/desistencias', formData, {
+      const response = await api.post('/api/desistencias/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
