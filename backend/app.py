@@ -45,7 +45,7 @@ def create_app(config_name='development'):
     @app.after_request
     def after_request(response):
         origin = request.headers.get('Origin')
-        if origin and origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+        if origin and (origin == "http://localhost:5173" or origin == "http://127.0.0.1:5173"):
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')

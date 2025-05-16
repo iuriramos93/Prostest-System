@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import base64
 from flask import request, jsonify, current_app, g # Adicionado g
 from werkzeug.security import generate_password_hash # Não usado diretamente aqui, mas pode ser útil para User model
 from app import db
@@ -33,12 +34,8 @@ def login():
       401:
         description: Credenciais inválidas ou cabeçalho de autorização ausente/malformado.
     """
-    if request.method == "OPTIONS":
-        response = current_app.make_default_options_response()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS,GET") # Adicionado GET para /me
-        return response
+    # Removido o tratamento manual de OPTIONS e headers CORS
+    # A configuração global de CORS em app.py agora cuida disso
 
     # Para Basic Auth, a autenticação é feita pelo decorador @auth_required.
     # Se o cliente enviar o header Authorization: Basic ..., o decorador cuidará disso.
@@ -353,12 +350,8 @@ def logout(): # Não precisa de @auth_required, pois o cliente apenas "esquece" 
       200:
         description: Logout realizado com sucesso (cliente deve limpar credenciais)
     """
-    if request.method == "OPTIONS":
-        response = current_app.make_default_options_response()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
-        return response
+    # Removido o tratamento manual de OPTIONS e headers CORS
+    # A configuração global de CORS em app.py agora cuida disso
         
     # Com Basic Auth, o logout é responsabilidade do cliente (limpar o header Authorization ou as credenciais armazenadas).
     # O servidor pode retornar uma resposta 401 para forçar o navegador a limpar o cache de autenticação, mas isso é opcional.
@@ -420,4 +413,3 @@ def seed_admin():
     db.session.commit()
     
     return jsonify({"message": "Usuário admin criado com sucesso"}), 201
-
