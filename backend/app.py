@@ -1,4 +1,5 @@
-from flask import Flask, jsonify, request
+
+from flask import Flask, jsonify, request, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -31,21 +32,20 @@ def create_app(config_name='development'):
     db.init_app(app)
     bcrypt.init_app(app)
     
-    # Configuração CORS centralizada e unificada
-    # Permitir tanto localhost quanto 127.0.0.1 para evitar problemas de CORS
-    app.config['CORS_HEADERS'] = 'Content-Type,Authorization'
+    # Configuração CORS centralizada e unificada - CORRIGIDA
+    # Permitir requisições do frontend para o backend independente das variações de localhost/127.0.0.1
     CORS(app, 
-         resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
+         origins=["http://localhost:5173", "http://127.0.0.1:5173"],
          supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"])
+         expose_headers=["Content-Type", "Authorization"])
     
-    # Adicionar regra de roteamento explícita para OPTIONS para todas as rotas
-    # Isso garante que os preflight requests sejam tratados corretamente
+    # Adicionar regra global para tratar headers CORS em todas as respostas
     @app.after_request
     def after_request(response):
         origin = request.headers.get('Origin')
-        if origin and (origin == "http://localhost:5173" or origin == "http://127.0.0.1:5173"):
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
@@ -56,7 +56,30 @@ def create_app(config_name='development'):
     @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
     @app.route('/<path:path>', methods=['OPTIONS'])
     def options_handler(path):
-        return '', 200
+        response = make_response()
+        response.status_code = 200
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+    
+    # Adicionar handler para erros HTTP para garantir headers CORS em todas as respostas
+    @app.errorhandler(404)
+    @app.errorhandler(405)
+    @app.errorhandler(500)
+    def handle_error(error):
+        response = jsonify({'error': str(error), 'message': error.description})
+        response.status_code = error.code if hasattr(error, 'code') else 500
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
     
     Migrate(app, db)
     Swagger(app)

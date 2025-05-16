@@ -34,19 +34,19 @@ def login():
       401:
         description: Credenciais inválidas ou cabeçalho de autorização ausente/malformado.
     """
-    # Removido o tratamento manual de OPTIONS e headers CORS
-    # A configuração global de CORS em app.py agora cuida disso
+    # Tratamento para requisições OPTIONS com cabeçalhos CORS explícitos
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Max-Age', '3600')
+        return response
 
-    # Para Basic Auth, a autenticação é feita pelo decorador @auth_required.
-    # Se o cliente enviar o header Authorization: Basic ..., o decorador cuidará disso.
-    # Esta rota de login pode ser usada para verificar as credenciais e retornar dados do usuário
-    # ou simplesmente para o frontend saber que o usuário está "logado" (tem credenciais válidas).
-    # A lógica de validação de credenciais já está no middleware basic_auth_required.
-    # Se chegarmos aqui via uma requisição POST com Basic Auth, o usuário já foi validado pelo middleware
-    # se a rota /login fosse protegida com @auth_required. 
-    # Como não está, precisamos simular a validação aqui ou proteger a rota.
-    # Para simplificar e alinhar com o frontend que espera um POST para /login:
-
+    # Para requisições POST, seguir com o fluxo de autenticação
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         # Se o frontend não enviar o header, ele pode estar enviando no corpo (não ideal para Basic Auth)
@@ -68,7 +68,15 @@ def login():
         user.ultimo_acesso = datetime.utcnow()
         db.session.commit()
         current_app.logger.info(f"Usuário {email} autenticado com sucesso via POST para /login.")
-        return jsonify({"message": "Login bem-sucedido", "user": user.to_dict()}), 200
+        response = jsonify({"message": "Login bem-sucedido", "user": user.to_dict()})
+        
+        # Garantir cabeçalhos CORS na resposta de sucesso
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        
+        return response, 200
 
     # Se o header Authorization estiver presente, o middleware (se aplicado à rota) já teria validado.
     # Como não está, vamos validar aqui também.
@@ -88,7 +96,15 @@ def login():
             user.ultimo_acesso = datetime.utcnow()
             db.session.commit()
             current_app.logger.info(f"Usuário {username} autenticado com sucesso via header Authorization em /login.")
-            return jsonify({"message": "Login bem-sucedido", "user": user.to_dict()}), 200
+            response = jsonify({"message": "Login bem-sucedido", "user": user.to_dict()})
+            
+            # Garantir cabeçalhos CORS na resposta de sucesso
+            origin = request.headers.get('Origin')
+            if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+                response.headers.add('Access-Control-Allow-Origin', origin)
+                response.headers.add('Access-Control-Allow-Credentials', 'true')
+            
+            return response, 200
         else:
             return jsonify({"message": "Esquema de autenticação Basic esperado no header Authorization"}), 401
     except Exception as e:
@@ -350,13 +366,27 @@ def logout(): # Não precisa de @auth_required, pois o cliente apenas "esquece" 
       200:
         description: Logout realizado com sucesso (cliente deve limpar credenciais)
     """
-    # Removido o tratamento manual de OPTIONS e headers CORS
-    # A configuração global de CORS em app.py agora cuida disso
+    # Tratamento para requisições OPTIONS com cabeçalhos CORS explícitos
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Max-Age', '3600')
+        return response
         
-    # Com Basic Auth, o logout é responsabilidade do cliente (limpar o header Authorization ou as credenciais armazenadas).
-    # O servidor pode retornar uma resposta 401 para forçar o navegador a limpar o cache de autenticação, mas isso é opcional.
+    # Com Basic Auth, o logout é responsabilidade do cliente (limpar o header Authorization ou as credenciais armazenadas)
     response = jsonify({"message": "Logout realizado com sucesso. O cliente deve limpar as credenciais Basic Auth."})
-    # response.status_code = 401 # Opcional: para tentar forçar o prompt de login no navegador
+    
+    # Garantir cabeçalhos CORS na resposta de sucesso
+    origin = request.headers.get('Origin')
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        
     return response, 200
 
 @auth.route("/seed-admin", methods=["POST"])
