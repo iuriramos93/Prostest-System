@@ -21,7 +21,7 @@ def relatorio_titulos():
     tags:
       - Relatórios
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: status
         in: query
@@ -126,7 +126,7 @@ def relatorio_remessas():
     tags:
       - Relatórios
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: status
         in: query
@@ -235,7 +235,7 @@ def relatorio_erros():
     tags:
       - Relatórios
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: tipo
         in: query
@@ -351,7 +351,7 @@ def relatorio_desistencias():
     tags:
       - Relatórios
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: status
         in: query
@@ -458,7 +458,7 @@ def estatisticas_processamento():
     tags:
       - Relatórios
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: periodo
         in: query
@@ -470,31 +470,25 @@ def estatisticas_processamento():
       200:
         description: Estatísticas de processamento
     """
+    # Parâmetro de período
     periodo = request.args.get("periodo", "mes")
-    current_user = g.user # Alterado de get_current_user()
     
     # Definir datas de início e fim com base no período
     hoje = datetime.utcnow().date()
+    data_fim = datetime.combine(hoje + timedelta(days=1), datetime.min.time())  # Fim do dia de hoje
+    
     if periodo == "dia":
-        data_inicio = hoje
-        data_fim = hoje + timedelta(days=1)
+        data_inicio = datetime.combine(hoje, datetime.min.time())  # Início do dia de hoje
     elif periodo == "semana":
-        data_inicio = hoje - timedelta(days=hoje.weekday())
-        data_fim = data_inicio + timedelta(weeks=1)
+        data_inicio = datetime.combine(hoje - timedelta(days=7), datetime.min.time())
     elif periodo == "ano":
-        data_inicio = hoje.replace(month=1, day=1)
-        data_fim = hoje.replace(month=12, day=31) + timedelta(days=1)
-    else:  # Padrão para mês
-        data_inicio = hoje.replace(day=1)
-        # Próximo mês, primeiro dia
-        if hoje.month == 12:
-            data_fim = hoje.replace(year=hoje.year + 1, month=1, day=1)
-        else:
-            data_fim = hoje.replace(month=hoje.month + 1, day=1)
-            
+        data_inicio = datetime.combine(hoje.replace(month=1, day=1), datetime.min.time())
+    else:  # mes (padrão)
+        data_inicio = datetime.combine(hoje.replace(day=1), datetime.min.time())
+    
     # Estatísticas de Títulos
     total_titulos_periodo = Titulo.query.filter(
-        Titulo.data_cadastro >= data_inicio, 
+        Titulo.data_cadastro >= data_inicio,
         Titulo.data_cadastro < data_fim
     ).count()
     titulos_protestados_periodo = Titulo.query.filter(
@@ -565,6 +559,163 @@ def estatisticas_processamento():
         }
     }), 200
 
+# Novo endpoint para o dashboard
+@relatorios.route("", methods=["GET"])
+@auth_required()
+def listar_relatorios():
+    """
+    Lista relatórios disponíveis ou retorna dados para o dashboard
+    ---
+    tags:
+      - Relatórios
+    security:
+      - BasicAuth: []
+    parameters:
+      - name: tipo
+        in: query
+        type: string
+        required: false
+        description: Tipo de relatório (dashboard para dados do dashboard)
+    responses:
+      200:
+        description: Lista de relatórios ou dados do dashboard
+    """
+    tipo = request.args.get("tipo")
+    
+    # Se o tipo for dashboard, retornar dados para o dashboard
+    if tipo == "dashboard":
+        return obter_dados_dashboard()
+    
+    # Caso contrário, listar relatórios disponíveis
+    relatorios_disponiveis = [
+        {
+            "id": 1,
+            "nome": "Relatório de Títulos",
+            "descricao": "Relatório detalhado de títulos com filtros por status e período",
+            "tipo": "titulos",
+            "parametros": {
+                "status": "opcional",
+                "data_inicio": "opcional",
+                "data_fim": "opcional",
+                "formato": "opcional (json/pdf)"
+            },
+            "data_criacao": datetime.now().isoformat(),
+            "usuario_id": g.user.id if g.user else None
+        },
+        {
+            "id": 2,
+            "nome": "Relatório de Remessas",
+            "descricao": "Relatório de remessas enviadas com status de processamento",
+            "tipo": "remessas",
+            "parametros": {
+                "status": "opcional",
+                "data_inicio": "opcional",
+                "data_fim": "opcional",
+                "formato": "opcional (json/pdf)"
+            },
+            "data_criacao": datetime.now().isoformat(),
+            "usuario_id": g.user.id if g.user else None
+        },
+        {
+            "id": 3,
+            "nome": "Relatório de Erros",
+            "descricao": "Relatório de erros ocorridos no sistema",
+            "tipo": "erros",
+            "parametros": {
+                "tipo": "opcional",
+                "resolvido": "opcional",
+                "data_inicio": "opcional",
+                "data_fim": "opcional",
+                "formato": "opcional (json/pdf)"
+            },
+            "data_criacao": datetime.now().isoformat(),
+            "usuario_id": g.user.id if g.user else None
+        },
+        {
+            "id": 4,
+            "nome": "Relatório de Desistências",
+            "descricao": "Relatório de desistências de protesto",
+            "tipo": "desistencias",
+            "parametros": {
+                "status": "opcional",
+                "data_inicio": "opcional",
+                "data_fim": "opcional",
+                "formato": "opcional (json/pdf)"
+            },
+            "data_criacao": datetime.now().isoformat(),
+            "usuario_id": g.user.id if g.user else None
+        },
+        {
+            "id": 5,
+            "nome": "Estatísticas de Processamento",
+            "descricao": "Estatísticas gerais de processamento do sistema",
+            "tipo": "estatisticas",
+            "parametros": {
+                "periodo": "opcional (dia/semana/mes/ano)"
+            },
+            "data_criacao": datetime.now().isoformat(),
+            "usuario_id": g.user.id if g.user else None
+        }
+    ]
+    
+    return jsonify(relatorios_disponiveis), 200
+
+def obter_dados_dashboard():
+    """
+    Função auxiliar para obter dados do dashboard
+    """
+    try:
+        # Obter distribuição de títulos por status
+        titulos_por_status = db.session.query(
+            Titulo.status, func.count(Titulo.id)
+        ).group_by(Titulo.status).all()
+        
+        # Converter para dicionário
+        status_counts = {status: count for status, count in titulos_por_status}
+        
+        # Obter remessas por mês (últimos 6 meses)
+        hoje = datetime.utcnow().date()
+        data_inicio = hoje.replace(day=1) - timedelta(days=180)  # 6 meses atrás
+        
+        remessas_por_mes = db.session.query(
+            func.date_trunc('month', Remessa.data_envio).label('mes'),
+            func.count().label('quantidade')
+        ).filter(
+            Remessa.data_envio >= data_inicio
+        ).group_by('mes').order_by('mes').all()
+        
+        # Formatar dados de remessas por mês
+        remessas_mes_formatado = [
+            {
+                "mes": mes.strftime("%Y-%m"),
+                "quantidade": quantidade
+            } for mes, quantidade in remessas_por_mes
+        ]
+        
+        # Calcular valor total protestado
+        valor_total_protestado = db.session.query(
+            func.sum(Titulo.valor)
+        ).filter(
+            Titulo.status == "Protestado"
+        ).scalar() or 0
+        
+        # Calcular taxa de sucesso de processamento
+        total_remessas = Remessa.query.count()
+        remessas_processadas = Remessa.query.filter(Remessa.status == "Processado").count()
+        
+        taxa_sucesso = (remessas_processadas / total_remessas * 100) if total_remessas > 0 else 0
+        
+        # Montar resposta
+        return jsonify({
+            "titulos_por_status": status_counts,
+            "remessas_por_mes": remessas_mes_formatado,
+            "valor_total_protestado": float(valor_total_protestado),
+            "taxa_sucesso_processamento": float(taxa_sucesso)
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter dados do dashboard: {str(e)}")
+        return jsonify({"error": f"Erro ao processar solicitação: {str(e)}"}), 500
+
 # Funções auxiliares para gerar PDF (exemplo básico)
 def gerar_pdf_titulos(dados, resumo):
     html = "<h1>Relatório de Títulos</h1>"
@@ -602,11 +753,6 @@ def gerar_pdf_titulos(dados, resumo):
             download_name="relatorio_titulos.pdf"
         )
     except Exception as e:
-        # Remover arquivos temporários em caso de erro
-        if os.path.exists(html_path):
-            os.remove(html_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
         return jsonify({"error": f"Erro ao gerar PDF: {str(e)}"}), 500
 
 def gerar_pdf_remessas(dados, resumo):
@@ -622,16 +768,20 @@ def gerar_pdf_remessas(dados, resumo):
     html += "</table>"
     
     try:
+        # Salvar HTML em arquivo temporário
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_html_file:
             tmp_html_file.write(html.encode("utf-8"))
             html_path = tmp_html_file.name
 
+        # Converter HTML para PDF usando pdfkit
         pdf_path = html_path.replace(".html", ".pdf")
         pdfkit.from_file(html_path, pdf_path)
         
+        # Ler o PDF gerado e enviar como resposta
         with open(pdf_path, "rb") as f:
             pdf_bytes = f.read()
             
+        # Remover arquivos temporários
         os.remove(html_path)
         os.remove(pdf_path)
             
@@ -642,10 +792,6 @@ def gerar_pdf_remessas(dados, resumo):
             download_name="relatorio_remessas.pdf"
         )
     except Exception as e:
-        if os.path.exists(html_path):
-            os.remove(html_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
         return jsonify({"error": f"Erro ao gerar PDF: {str(e)}"}), 500
 
 def gerar_pdf_erros(dados, resumo):
@@ -655,22 +801,26 @@ def gerar_pdf_erros(dados, resumo):
     html += f"<p>Erros Pendentes: {resumo['erros_pendentes']}</p>"
     html += f"<p>Gerado em: {resumo['data_geracao']}</p>"
     html += "<table border=\"1\" style=\"width:100%; border-collapse: collapse;\">"
-    html += "<tr><th>ID</th><th>Tipo</th><th>Mensagem</th><th>Ocorrência</th><th>Resolvido</th><th>Resolução</th><th>Remessa</th><th>Título</th><th>Usuário Resolução</th></tr>"
+    html += "<tr><th>ID</th><th>Tipo</th><th>Mensagem</th><th>Data Ocorrência</th><th>Resolvido</th><th>Data Resolução</th><th>Remessa</th><th>Título</th><th>Usuário Resolução</th></tr>"
     for erro in dados:
         html += f"<tr><td>{erro['id']}</td><td>{erro['tipo']}</td><td>{erro['mensagem']}</td><td>{erro['data_ocorrencia']}</td><td>{erro['resolvido']}</td><td>{erro['data_resolucao']}</td><td>{erro['remessa']}</td><td>{erro['titulo']}</td><td>{erro['usuario_resolucao']}</td></tr>"
     html += "</table>"
     
     try:
+        # Salvar HTML em arquivo temporário
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_html_file:
             tmp_html_file.write(html.encode("utf-8"))
             html_path = tmp_html_file.name
 
+        # Converter HTML para PDF usando pdfkit
         pdf_path = html_path.replace(".html", ".pdf")
         pdfkit.from_file(html_path, pdf_path)
         
+        # Ler o PDF gerado e enviar como resposta
         with open(pdf_path, "rb") as f:
             pdf_bytes = f.read()
             
+        # Remover arquivos temporários
         os.remove(html_path)
         os.remove(pdf_path)
             
@@ -681,10 +831,6 @@ def gerar_pdf_erros(dados, resumo):
             download_name="relatorio_erros.pdf"
         )
     except Exception as e:
-        if os.path.exists(html_path):
-            os.remove(html_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
         return jsonify({"error": f"Erro ao gerar PDF: {str(e)}"}), 500
 
 def gerar_pdf_desistencias(dados, resumo):
@@ -695,22 +841,26 @@ def gerar_pdf_desistencias(dados, resumo):
     html += f"<p>Rejeitadas: {resumo['rejeitadas']}</p>"
     html += f"<p>Gerado em: {resumo['data_geracao']}</p>"
     html += "<table border=\"1\" style=\"width:100%; border-collapse: collapse;\">"
-    html += "<tr><th>ID</th><th>Título</th><th>Protocolo</th><th>Devedor</th><th>Motivo</th><th>Status</th><th>Solicitação</th><th>Processamento</th><th>Usuário</th><th>Usuário Processamento</th></tr>"
+    html += "<tr><th>ID</th><th>Título</th><th>Protocolo</th><th>Devedor</th><th>Motivo</th><th>Status</th><th>Data Solicitação</th><th>Data Processamento</th><th>Usuário</th><th>Usuário Processamento</th></tr>"
     for desistencia in dados:
         html += f"<tr><td>{desistencia['id']}</td><td>{desistencia['titulo']}</td><td>{desistencia['protocolo']}</td><td>{desistencia['devedor']}</td><td>{desistencia['motivo']}</td><td>{desistencia['status']}</td><td>{desistencia['data_solicitacao']}</td><td>{desistencia['data_processamento']}</td><td>{desistencia['usuario']}</td><td>{desistencia['usuario_processamento']}</td></tr>"
     html += "</table>"
     
     try:
+        # Salvar HTML em arquivo temporário
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_html_file:
             tmp_html_file.write(html.encode("utf-8"))
             html_path = tmp_html_file.name
 
+        # Converter HTML para PDF usando pdfkit
         pdf_path = html_path.replace(".html", ".pdf")
         pdfkit.from_file(html_path, pdf_path)
         
+        # Ler o PDF gerado e enviar como resposta
         with open(pdf_path, "rb") as f:
             pdf_bytes = f.read()
             
+        # Remover arquivos temporários
         os.remove(html_path)
         os.remove(pdf_path)
             
@@ -721,9 +871,4 @@ def gerar_pdf_desistencias(dados, resumo):
             download_name="relatorio_desistencias.pdf"
         )
     except Exception as e:
-        if os.path.exists(html_path):
-            os.remove(html_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
         return jsonify({"error": f"Erro ao gerar PDF: {str(e)}"}), 500
-
