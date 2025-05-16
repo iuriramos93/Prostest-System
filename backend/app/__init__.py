@@ -32,6 +32,7 @@ def create_app(config_name='development'):
     bcrypt.init_app(app)
     
     # Configuração CORS foi movida para app.py para evitar duplicidade
+    # Não adicione configuração CORS aqui para evitar conflitos
     
     Migrate(app, db)
     Swagger(app)
@@ -107,4 +108,3 @@ def create_app(config_name='development'):
 
 # Factory pattern implementation
 # A instância é criada pelo wsgi.py ou arquivo de execução principal (ex: app.py na raiz do backend)
-

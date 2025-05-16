@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Download, FileText, FileSpreadsheet, PieChart, BarChart, LineChart, Plus, Trash2, Edit2 } from "lucide-react";
 import { relatoriosService, Relatorio } from "@/services/relatorios";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -26,7 +26,7 @@ export function Relatorios() {
     tipo: '',
     parametros: {}
   });
-  const { toast } = useToast();
+  const { toast: toastUI } = useToast();
 
   useEffect(() => {
     carregarRelatorios();
@@ -38,6 +38,7 @@ export function Relatorios() {
       setRelatorios(response);
     } catch (error) {
       console.error('Erro ao carregar relatórios:', error);
+      // Usar toast do sonner em vez de toast2.error
       toast.error('Erro ao carregar relatórios');
     } finally {
       setLoading(false);
@@ -132,7 +133,7 @@ export function Relatorios() {
         </div>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
-            <Button onClick={() => setFormData({ nome: '', descricao: '', tipo: '', parametros: {} })}>
+            <Button onClick={handleNovoRelatorio}>
               Novo Relatório
             </Button>
           </DialogTrigger>

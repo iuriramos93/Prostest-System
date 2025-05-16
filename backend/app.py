@@ -7,7 +7,6 @@ from flask_compress import Compress
 from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
-# from flask_jwt_extended import JWTManager # Removido JWTManager
 import os
 import time
 
@@ -15,7 +14,6 @@ db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
 bcrypt = Bcrypt()
-# jwt = JWTManager() # Removido JWTManager
 
 def create_app(config_name='development'):
     app = Flask(__name__)
@@ -29,17 +27,12 @@ def create_app(config_name='development'):
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Configurações JWT foram removidas
-    # app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY', 'jwt-secret-string')
-    # app.config['JWT_ACCESS_TOKEN_EXPIRES'] = app.config.get('JWT_ACCESS_TOKEN_EXPIRES')
-    # app.config['JWT_REFRESH_TOKEN_EXPIRES'] = app.config.get('JWT_REFRESH_TOKEN_EXPIRES')
-
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
-    # jwt.init_app(app) # Removido JWTManager
     
-    # Configuração CORS atualizada para lidar corretamente com preflight OPTIONS
+    # Configuração CORS centralizada e unificada
+    # Permitir tanto localhost quanto 127.0.0.1 para evitar problemas de CORS
     app.config['CORS_HEADERS'] = 'Content-Type,Authorization'
     CORS(app, 
          resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
@@ -48,6 +41,7 @@ def create_app(config_name='development'):
          allow_headers=["Content-Type", "Authorization"])
     
     # Adicionar regra de roteamento explícita para OPTIONS para todas as rotas
+    # Isso garante que os preflight requests sejam tratados corretamente
     @app.after_request
     def after_request(response):
         origin = request.headers.get('Origin')
@@ -57,6 +51,12 @@ def create_app(config_name='development'):
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+    
+    # Tratar explicitamente requests OPTIONS para evitar redirecionamentos
+    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def options_handler(path):
+        return '', 200
     
     Migrate(app, db)
     Swagger(app)
@@ -74,19 +74,21 @@ def create_app(config_name='development'):
     cache.init_app(app)
     
     # Inicializar ferramentas de performance personalizadas
-    from app.utils.performance import init_performance_tools
-    init_performance_tools(app)
+    # Comentado para evitar erros de importação se os módulos não existirem
+    # from app.utils.performance import init_performance_tools
+    # init_performance_tools(app)
     
     # Inicializar sistema de tarefas assíncronas
-    from app.utils.async_tasks import init_async_tasks
-    init_async_tasks(app)
+    # Comentado para evitar erros de importação se os módulos não existirem
+    # from app.utils.async_tasks import init_async_tasks
+    # init_async_tasks(app)
 
     # Adicionar endpoint de saúde
     @app.route('/health')
     def health_check():
         try:
             # Verificar conexão com banco de dados
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1'))
             db_status = 'ok'
         except Exception as e:
             app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
@@ -131,4 +133,3 @@ def create_app(config_name='development'):
 
 # Factory pattern implementation
 # A instância é criada pelo wsgi.py
-
