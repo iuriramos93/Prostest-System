@@ -34,7 +34,7 @@ def create_app(config_name='development'):
     # Configurar CORS
     CORS(app, resources={
         r"/*": {
-            "origins": "*", # Em produção, restrinja isso
+            "origins": "http://localhost:5173", # Especificar a origem do frontend
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
