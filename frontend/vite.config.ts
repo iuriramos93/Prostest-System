@@ -41,11 +41,11 @@ export default defineConfig({
     cors: true,
     hmr: {
       clientPort: 5173,
-      timeout: 5000
+      timeout: 5001
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

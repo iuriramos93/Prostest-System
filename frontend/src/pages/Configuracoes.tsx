@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 import axios from "axios";
 
 // API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://0.0.0.0:5001';
 
 // Configuração do axios com token
 const getAuthHeader = () => {
