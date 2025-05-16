@@ -5,45 +5,12 @@ from sqlalchemy import func, and_, desc, case
 from app import db
 from app.models import Remessa, Titulo, Desistencia, Erro, User, Devedor
 from . import dashboard
-
-# Cache simples em memória com expiração
-_cache = {}
-
-# Função auxiliar para criar cache key baseado nos parâmetros da requisição
-def _get_cache_key(prefix, **kwargs):
-    """Gera uma chave de cache baseada no prefixo e parâmetros"""
-    key = prefix
-    for k, v in sorted(kwargs.items()):
-        key += f":{k}={v}"
-    return key
-
-def _get_cached_data(key, ttl=300):
-    """Obtém dados do cache se existirem e não estiverem expirados
-    
-    Args:
-        key: Chave do cache
-        ttl: Tempo de vida em segundos (padrão: 5 minutos)
-        
-    Returns:
-        Dados em cache ou None se não existirem ou estiverem expirados
-    """
-    if key in _cache:
-        timestamp, data = _cache[key]
-        if datetime.utcnow().timestamp() - timestamp < ttl:
-            return data
-    return None
-
-def _set_cache_data(key, data):
-    """Armazena dados no cache
-    
-    Args:
-        key: Chave do cache
-        data: Dados a serem armazenados
-    """
-    _cache[key] = (datetime.utcnow().timestamp(), data)
+from app.utils.performance import cache_result, log_performance
 
 @dashboard.route('/summary', methods=['GET'])
 @auth_required()
+@cache_result(timeout=300)
+@log_performance
 def get_summary_statistics():
     """Retorna estatísticas resumidas do sistema
     ---
@@ -56,13 +23,6 @@ def get_summary_statistics():
         description: Estatísticas resumidas
     """
     try:
-        # Verificar se há dados em cache
-        cache_key = _get_cache_key('dashboard_summary')
-        cached_data = _get_cached_data(cache_key)
-        
-        if cached_data:
-            return jsonify(cached_data)
-        
         # Consultas para estatísticas
         total_remessas = Remessa.query.count()
         total_titulos = Titulo.query.count()
@@ -90,9 +50,6 @@ def get_summary_statistics():
             'timestamp': datetime.utcnow().isoformat()
         }
         
-        # Armazenar no cache
-        _set_cache_data(cache_key, response)
-        
         return jsonify(response)
     except Exception as e:
         current_app.logger.error(f"Erro ao obter estatísticas resumidas: {str(e)}")
@@ -100,6 +57,8 @@ def get_summary_statistics():
 
 @dashboard.route('/recent-submissions', methods=['GET'])
 @auth_required()
+@cache_result(timeout=300)
+@log_performance
 def get_recent_submissions():
     """Retorna lista de remessas recentes com paginação e filtros
     ---
@@ -147,20 +106,6 @@ def get_recent_submissions():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
-        # Criar chave de cache baseada nos parâmetros
-        cache_key = _get_cache_key('recent_submissions', 
-                                page=page, 
-                                per_page=per_page, 
-                                status=status, 
-                                tipo=tipo, 
-                                start_date=start_date, 
-                                end_date=end_date)
-        
-        # Verificar cache
-        cached_data = _get_cached_data(cache_key)
-        if cached_data:
-            return jsonify(cached_data)
-        
         # Construir query base
         query = Remessa.query
         
@@ -202,9 +147,6 @@ def get_recent_submissions():
             }
         }
         
-        # Armazenar no cache
-        _set_cache_data(cache_key, response)
-        
         return jsonify(response)
     except Exception as e:
         current_app.logger.error(f"Erro ao obter remessas recentes: {str(e)}")
@@ -212,6 +154,8 @@ def get_recent_submissions():
 
 @dashboard.route('/status-distribution', methods=['GET'])
 @auth_required()
+@cache_result(timeout=300)
+@log_performance
 def get_status_distribution():
     """Retorna distribuição de status dos títulos e tendência dos últimos 30 dias
     ---
@@ -224,13 +168,6 @@ def get_status_distribution():
         description: Distribuição de status e tendência
     """
     try:
-        # Verificar cache
-        cache_key = _get_cache_key('status_distribution')
-        cached_data = _get_cached_data(cache_key)
-        
-        if cached_data:
-            return jsonify(cached_data)
-        
         # Distribuição atual de status
         status_distribution = db.session.query(
             Titulo.status, func.count(Titulo.id)
@@ -268,9 +205,6 @@ def get_status_distribution():
             'daily_trends': daily_trends
         }
         
-        # Armazenar no cache
-        _set_cache_data(cache_key, response)
-        
         return jsonify(response)
     except Exception as e:
         current_app.logger.error(f"Erro ao obter distribuição de status: {str(e)}")
@@ -278,6 +212,8 @@ def get_status_distribution():
 
 @dashboard.route('/estatisticas-gerais', methods=['GET'])
 @auth_required()
+@cache_result(timeout=600)  # Cache por 10 minutos
+@log_performance
 def get_estatisticas_gerais():
     """Endpoint que retorna estatísticas gerais do sistema agregadas por mês
     ---
@@ -290,13 +226,6 @@ def get_estatisticas_gerais():
         description: Estatísticas gerais do sistema
     """
     try:
-        # Verificar cache
-        cache_key = _get_cache_key('estatisticas_gerais')
-        cached_data = _get_cached_data(cache_key)
-        
-        if cached_data:
-            return jsonify(cached_data)
-        
         # Estatísticas de títulos por mês
         titulos_por_mes = db.session.query(
             func.date_trunc('month', Titulo.data_cadastro).label('mes'),
@@ -324,9 +253,6 @@ def get_estatisticas_gerais():
             'desistencias_por_mes': [{'mes': r[0].strftime('%Y-%m'), 'quantidade': r[1]} for r in desistencias_por_mes]
         }
         
-        # Armazenar no cache
-        _set_cache_data(cache_key, resultado)
-        
         return jsonify(resultado)
     except Exception as e:
         current_app.logger.error(f"Erro ao obter estatísticas gerais: {str(e)}")
@@ -334,6 +260,8 @@ def get_estatisticas_gerais():
 
 @dashboard.route('/totais-por-status', methods=['GET'])
 @auth_required()
+@cache_result(timeout=300)
+@log_performance
 def get_totais_por_status():
     """Endpoint que retorna o total de títulos por status
     ---
@@ -346,13 +274,6 @@ def get_totais_por_status():
         description: Total de títulos por status
     """
     try:
-        # Verificar cache
-        cache_key = _get_cache_key('totais_por_status')
-        cached_data = _get_cached_data(cache_key)
-        
-        if cached_data:
-            return jsonify(cached_data)
-        
         # Estatísticas de títulos por status
         titulos_por_status = db.session.query(
             Titulo.status,
@@ -370,9 +291,6 @@ def get_totais_por_status():
                 } for r in titulos_por_status
             ]
         }
-        
-        # Armazenar no cache
-        _set_cache_data(cache_key, resultado)
         
         return jsonify(resultado)
     except Exception as e:
