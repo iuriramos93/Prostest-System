@@ -31,15 +31,7 @@ def create_app(config_name='development'):
     db.init_app(app)
     bcrypt.init_app(app)
     
-    # Configurar CORS
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*", # Em produção, restrinja isso
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    # Configuração CORS foi movida para app.py para evitar duplicidade
     
     Migrate(app, db)
     Swagger(app)

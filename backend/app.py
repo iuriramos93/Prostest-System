@@ -39,15 +39,22 @@ def create_app(config_name='development'):
     bcrypt.init_app(app)
     # jwt.init_app(app) # Removido JWTManager
     
-    # Configurar CORS
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    # Configuração CORS atualizada para lidar corretamente com preflight OPTIONS
+    app.config['CORS_HEADERS'] = 'Content-Type,Authorization'
+    CORS(app, 
+         resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
+         supports_credentials=True,
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"])
+    
+    # Adicionar regra de roteamento explícita para OPTIONS para todas as rotas
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
     
     Migrate(app, db)
     Swagger(app)
