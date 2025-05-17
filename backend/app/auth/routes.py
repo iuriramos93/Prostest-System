@@ -1,8 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import base64
 from flask import request, jsonify, current_app, g # Adicionado g
 from werkzeug.security import generate_password_hash # Não usado diretamente aqui, mas pode ser útil para User model
+# Temporariamente comentado
+# from flask_jwt_extended import create_access_token, get_jwt_identity
 from app import db
 from app.models import User
 from . import auth
@@ -31,6 +33,8 @@ def login():
               type: string
             user:
               $ref: "#/definitions/User"
+            access_token:
+              type: string
       401:
         description: Credenciais inválidas ou cabeçalho de autorização ausente/malformado.
     """
@@ -68,7 +72,16 @@ def login():
         user.ultimo_acesso = datetime.utcnow()
         db.session.commit()
         current_app.logger.info(f"Usuário {email} autenticado com sucesso via POST para /login.")
-        response = jsonify({"message": "Login bem-sucedido", "user": user.to_dict()})
+        
+        # Gerar token JWT (temporariamente comentado)
+        # access_token = create_access_token(identity=user.id)
+        access_token = "dummy-token-for-development"
+        
+        response = jsonify({
+            "message": "Login bem-sucedido", 
+            "user": user.to_dict(),
+            "access_token": access_token
+        })
         
         # Garantir cabeçalhos CORS na resposta de sucesso
         origin = request.headers.get('Origin')
@@ -96,7 +109,16 @@ def login():
             user.ultimo_acesso = datetime.utcnow()
             db.session.commit()
             current_app.logger.info(f"Usuário {username} autenticado com sucesso via header Authorization em /login.")
-            response = jsonify({"message": "Login bem-sucedido", "user": user.to_dict()})
+            
+            # Gerar token JWT (temporariamente comentado)
+            # access_token = create_access_token(identity=user.id)
+            access_token = "dummy-token-for-development"
+            
+            response = jsonify({
+                "message": "Login bem-sucedido", 
+                "user": user.to_dict(),
+                "access_token": access_token
+            })
             
             # Garantir cabeçalhos CORS na resposta de sucesso
             origin = request.headers.get('Origin')

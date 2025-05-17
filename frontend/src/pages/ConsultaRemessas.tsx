@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Download, FileSpreadsheet, FilePdf, FileText } from "lucide-react";
+import { Eye, Download, FileSpreadsheet, FileText, File } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { api } from "@/services/api";
@@ -222,7 +222,7 @@ export function ConsultaRemessas() {
               <span>Excel</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => exportarRemessas('pdf')}>
-              <FilePdf className="mr-2 h-4 w-4" />
+              <File className="mr-2 h-4 w-4" />
               <span>PDF</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -1,4 +1,3 @@
-
 from flask import Flask, jsonify, request, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -8,6 +7,8 @@ from flask_compress import Compress
 from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
+# Removendo temporariamente dependência do JWT
+# from flask_jwt_extended import JWTManager
 import os
 import time
 
@@ -15,6 +16,7 @@ db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
 bcrypt = Bcrypt()
+# jwt = JWTManager()
 
 def create_app(config_name='development'):
     app = Flask(__name__)
@@ -27,10 +29,15 @@ def create_app(config_name='development'):
         'postgresql://postgres:postgres@db:5432/protest_system'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Configurar JWT
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'desenvolvimento-chave-secreta')
+    # app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 horas
 
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
+    # jwt.init_app(app)
     
     # Configuração CORS centralizada e unificada - CORRIGIDA
     # Permitir requisições do frontend para o backend independente das variações de localhost/127.0.0.1
