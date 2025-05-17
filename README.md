@@ -1,115 +1,264 @@
-# Sistema de Protesto - Migração do Backend
+# Prostest-System
 
-Este documento descreve o processo de migração do backend Node.js para o backend Flask do Sistema de Protesto.
+Sistema de Gerenciamento de Protestos de Títulos para Cartórios
+
+## Visão Geral
+
+O Prostest-System é uma aplicação web completa para gerenciamento de protestos de títulos em cartórios, permitindo o envio de remessas, controle de desistências, geração de relatórios e muito mais. O sistema é composto por um frontend React com TypeScript e um backend Flask com PostgreSQL.
 
 ## Estrutura do Projeto
 
-O projeto está estruturado da seguinte forma:
+```
+Prostest-System/
+├── frontend/               # Frontend React/TypeScript
+│   ├── src/                # Código fonte do frontend
+│   ├── public/             # Arquivos estáticos
+│   ├── Dockerfile          # Configuração Docker para o frontend
+│   └── package.json        # Dependências do frontend
+├── backend/                # Backend Flask
+│   ├── app/                # Código fonte do backend
+│   │   ├── __init__.py     # Inicialização da aplicação Flask
+│   │   ├── auth/           # Módulo de autenticação
+│   │   ├── remessas/       # Módulo de remessas
+│   │   ├── relatorios/     # Módulo de relatórios
+│   │   └── utils/          # Utilitários
+│   ├── Dockerfile          # Configuração Docker para o backend
+│   └── requirements.txt    # Dependências do backend
+├── sql_scripts/            # Scripts SQL para inicialização do banco
+│   ├── database_schema.sql # Esquema do banco de dados
+│   └── dados_teste.sql     # Dados de teste
+├── docker-compose.yml      # Configuração Docker Compose para desenvolvimento
+├── .env.example            # Exemplo de variáveis de ambiente
+└── .env.prod.example       # Exemplo de variáveis de ambiente para produção
+```
 
-- **backend/**: Contém o código do backend Flask
-  - **app/**: Contém os módulos da aplicação Flask
-    - **auth/**: Módulo de autenticação
-    - **remessas/**: Módulo de remessas
-    - **desistencias/**: Módulo de desistências
-    - **titulos/**: Módulo de títulos
-    - **utils/**: Utilidades diversas
-  - **config/**: Arquivos de configuração
-  - **migrations/**: Migrações do banco de dados
-  - **scripts/**: Scripts utilitários
+## Funcionalidades Principais
 
-- **src/**: Contém o código do frontend React
-  - **backend/**: Contém o código do backend Node.js (a ser migrado)
+- **Autenticação**: Sistema de autenticação Basic Auth seguro
+- **Remessas**: Envio e processamento de remessas de títulos
+- **Desistências**: Gerenciamento de desistências de protesto
+- **Relatórios**: Geração de relatórios e estatísticas
+- **Exportação**: Exportação de dados em CSV, PDF e Excel
+- **Dashboard**: Visualização de métricas e indicadores
 
-## Migração do Backend Node.js para Flask
+## Requisitos
 
-### Passo 1: Preparar o Ambiente
+- Docker e Docker Compose
+- Node.js 16+ (apenas para desenvolvimento local do frontend)
+- Python 3.9+ (apenas para desenvolvimento local do backend)
+- PostgreSQL 13+ (gerenciado pelo Docker em desenvolvimento)
 
-1. Certifique-se de ter o Docker e o Docker Compose instalados.
-2. Crie um ambiente virtual Python para desenvolvimento local:
+## Instalação e Execução
+
+### Usando Docker (Recomendado)
+
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/seu-usuario/Prostest-System.git
+   cd Prostest-System
+   ```
+
+2. Configure as variáveis de ambiente:
+   ```bash
+   cp .env.example .env
+   # Edite o arquivo .env conforme necessário
+   ```
+
+3. Inicie os contêineres:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Acesse a aplicação:
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5000
+   - pgAdmin: http://localhost:5050 (credenciais no .env)
+
+### Desenvolvimento Local
+
+#### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+#### Backend
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # No Windows: venv\Scripts\activate
 pip install -r requirements.txt
+python wsgi.py
 ```
 
-### Passo 2: Executar Migrações do Banco de Dados
+## Endpoints da API
 
-1. Crie a migração para adicionar o campo `descricao` ao modelo `Remessa`:
+### Autenticação
+
+- `POST /api/auth/login`: Autenticação de usuário
+- `GET /api/auth/logout`: Logout de usuário
+- `GET /api/auth/me`: Informações do usuário autenticado
+
+### Remessas
+
+- `GET /api/remessas`: Lista remessas com paginação e filtros
+  - Parâmetros: `tipo`, `uf`, `status`, `dataInicio`, `dataFim`, `page`, `per_page`
+- `GET /api/remessas/<id>`: Detalhes de uma remessa específica
+- `POST /api/remessas/upload`: Envio de nova remessa
+- `GET /api/remessas/estatisticas`: Estatísticas de remessas
+- `GET /api/remessas/exportar`: Exportação de remessas para CSV
+
+### Desistências
+
+- `GET /api/remessas?tipo=Desistência`: Lista desistências com paginação e filtros
+- `POST /api/remessas/desistencias`: Envio de nova desistência
+
+### Relatórios
+
+- `GET /api/relatorios/dashboard`: Dados para o dashboard
+- `GET /api/relatorios/titulos`: Relatório de títulos
+- `GET /api/relatorios/desistencias`: Relatório de desistências
+
+## Paginação
+
+As rotas que retornam listas de objetos suportam paginação através dos seguintes parâmetros:
+
+- `page`: Número da página (começa em 1)
+- `per_page`: Itens por página (padrão: 10, máximo: 100)
+
+Exemplo de resposta paginada:
+
+```json
+{
+  "items": [...],
+  "meta": {
+    "page": 1,
+    "per_page": 10,
+    "total": 42,
+    "pages": 5,
+    "has_next": true,
+    "has_prev": false,
+    "next_page": 2,
+    "prev_page": null
+  }
+}
+```
+
+## Exportação de Dados
+
+O sistema suporta exportação de dados em diferentes formatos:
+
+- **CSV**: Implementado e disponível para todas as listagens
+- **Excel**: Em desenvolvimento
+- **PDF**: Em desenvolvimento
+
+Para exportar dados, use o botão "Exportar" disponível nas telas de listagem ou acesse diretamente os endpoints de exportação.
+
+## Deploy em Produção
+
+Para deploy em produção, siga estas etapas:
+
+1. Configure as variáveis de ambiente para produção:
+   ```bash
+   cp .env.prod.example .env.prod
+   # Edite o arquivo .env.prod com valores seguros para produção
+   ```
+
+2. Construa e inicie os contêineres de produção:
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+3. Configure um servidor web (Nginx, Apache) como proxy reverso para os serviços.
+
+4. Configure certificados SSL para HTTPS.
+
+## CI/CD com GitHub Actions
+
+Para configurar CI/CD com GitHub Actions:
+
+1. Crie um arquivo `.github/workflows/main.yml` com o seguinte conteúdo:
+
+```yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          cd backend
+          pytest
+
+  build-and-deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and push Docker images
+        run: |
+          echo "Implementar build e push das imagens Docker"
+      - name: Deploy to server
+        run: |
+          echo "Implementar deploy no servidor de produção"
+```
+
+2. Configure os secrets necessários no repositório GitHub.
+
+## Manutenção e Backup
+
+### Backup do Banco de Dados
 
 ```bash
-cd backend
-python scripts/create_migration.py
+# Backup
+docker exec protestsystem-db pg_dump -U postgres protest_system > backup_$(date +%Y%m%d).sql
+
+# Restauração
+cat backup_20250517.sql | docker exec -i protestsystem-db psql -U postgres protest_system
 ```
 
-2. Aplique a migração:
+### Logs
 
 ```bash
-cd backend
-python scripts/apply_migration.py
+# Visualizar logs do backend
+docker-compose logs -f api
+
+# Visualizar logs do frontend
+docker-compose logs -f frontend
+
+# Visualizar logs do banco de dados
+docker-compose logs -f db
 ```
 
-### Passo 3: Migrar Dados do Node.js para o Flask
+## Contribuição
 
-1. Certifique-se de que o banco de dados PostgreSQL está em execução.
-2. Execute o script de migração de dados:
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Abra um Pull Request
 
-```bash
-cd backend
-python scripts/migrate_js_to_flask.py
-```
+## Contato
 
-### Passo 4: Iniciar os Serviços com Docker Compose
-
-1. Inicie os serviços usando Docker Compose:
-
-```bash
-docker-compose up -d
-```
-
-2. Verifique se os serviços estão em execução:
-
-```bash
-docker-compose ps
-```
-
-### Passo 5: Verificar a Migração
-
-1. Acesse a API Flask em `http://localhost:5000/api/health` para verificar se está funcionando.
-2. Acesse o frontend em `http://localhost:3002` para verificar se está se comunicando corretamente com a API Flask.
-
-## Arquivos Migrados
-
-Os seguintes arquivos do backend Node.js foram migrados para o backend Flask:
-
-- **src/backend/routes/remessas.js** → **backend/app/remessas/routes.py**
-- **src/backend/server.js** → **backend/app.py** e **backend/wsgi.py**
-
-## Notas Adicionais
-
-- O backend Flask usa SQLAlchemy como ORM, enquanto o backend Node.js usava consultas SQL diretas.
-- A autenticação no backend Flask é feita usando Basic Auth. O frontend foi ajustado para enviar credenciais neste formato.
-- As rotas da API Flask seguem o mesmo padrão das rotas da API Node.js, facilitando a integração com o frontend existente.
-
-## Troubleshooting
-
-Se encontrar problemas durante a migração, verifique:
-
-1. Logs dos containers Docker:
-
-```bash
-docker-compose logs api
-```
-
-2. Verifique se o banco de dados está acessível:
-
-```bash
-docker-compose exec api python -c "from app import db; db.session.execute('SELECT 1')"
-```
-
-3. Verifique se as migrações foram aplicadas corretamente:
-
-```bash
-docker-compose exec api flask db current
-```
+Para suporte ou dúvidas, entre em contato com a equipe de desenvolvimento.

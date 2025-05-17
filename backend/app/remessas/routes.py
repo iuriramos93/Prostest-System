@@ -24,7 +24,7 @@ def upload_remessa():
     tags:
       - Remessas
     security:
-      - JWT: []
+      - BasicAuth: []
     consumes:
       - multipart/form-data
     parameters:
@@ -160,7 +160,7 @@ def upload_desistencia():
     tags:
       - Desistências
     security:
-      - JWT: []
+      - BasicAuth: []
     consumes:
       - multipart/form-data
     parameters:
@@ -324,17 +324,17 @@ def processar_desistencia(remessa_id, file_path):
         
         raise e
 
-# Rota para listar remessas
+# Rota para listar remessas com paginação
 @remessas.route('/', methods=['GET'])
 @auth_required()
 def get_remessas():
     """
-    Lista todas as remessas com filtros opcionais
+    Lista todas as remessas com filtros opcionais e paginação
     ---
     tags:
       - Remessas
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: tipo
         in: query
@@ -361,9 +361,21 @@ def get_remessas():
         type: string
         required: false
         description: Data de fim (formato YYYY-MM-DD)
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Número da página (começa em 1)
+        default: 1
+      - name: per_page
+        in: query
+        type: integer
+        required: false
+        description: Itens por página
+        default: 10
     responses:
       200:
-        description: Lista de remessas
+        description: Lista de remessas paginada
     """
     # Obter parâmetros de consulta
     tipo = request.args.get('tipo')
@@ -371,6 +383,16 @@ def get_remessas():
     status = request.args.get('status')
     data_inicio = request.args.get('dataInicio')
     data_fim = request.args.get('dataFim')
+    
+    # Parâmetros de paginação
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    # Validar parâmetros de paginação
+    if page < 1:
+        page = 1
+    if per_page < 1 or per_page > 100:  # Limitar para evitar sobrecarga
+        per_page = 10
     
     # Construir a consulta
     query = Remessa.query
@@ -402,11 +424,27 @@ def get_remessas():
     # Ordenar por data de envio (mais recentes primeiro)
     query = query.order_by(Remessa.data_envio.desc())
     
-    # Executar a consulta
-    remessas = query.all()
+    # Executar a consulta paginada
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    remessas = pagination.items
     
-    # Retornar os resultados
-    return jsonify([remessa.to_dict() for remessa in remessas]), 200
+    # Preparar metadados de paginação
+    meta = {
+        'page': page,
+        'per_page': per_page,
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev,
+        'next_page': pagination.next_num if pagination.has_next else None,
+        'prev_page': pagination.prev_num if pagination.has_prev else None
+    }
+    
+    # Retornar os resultados com metadados de paginação
+    return jsonify({
+        'items': [remessa.to_dict() for remessa in remessas],
+        'meta': meta
+    }), 200
 
 # Rota para obter detalhes de uma remessa
 @remessas.route('/<int:id>', methods=['GET'])
@@ -418,7 +456,7 @@ def get_remessa(id):
     tags:
       - Remessas
     security:
-      - JWT: []
+      - BasicAuth: []
     parameters:
       - name: id
         in: path
@@ -437,12 +475,37 @@ def get_remessa(id):
     if not remessa:
         return jsonify({'message': 'Remessa não encontrada'}), 404
     
-    # Buscar títulos associados à remessa
-    titulos = Titulo.query.filter_by(remessa_id=id).all()
+    # Buscar títulos associados à remessa com paginação
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Validar parâmetros de paginação
+    if page < 1:
+        page = 1
+    if per_page < 1 or per_page > 100:
+        per_page = 20
+    
+    # Consulta paginada de títulos
+    titulos_pagination = Titulo.query.filter_by(remessa_id=id).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Preparar metadados de paginação para títulos
+    titulos_meta = {
+        'page': page,
+        'per_page': per_page,
+        'total': titulos_pagination.total,
+        'pages': titulos_pagination.pages,
+        'has_next': titulos_pagination.has_next,
+        'has_prev': titulos_pagination.has_prev
+    }
     
     # Preparar resposta
     response = remessa.to_dict()
-    response['titulos'] = [titulo.to_dict() for titulo in titulos]
+    response['titulos'] = {
+        'items': [titulo.to_dict() for titulo in titulos_pagination.items],
+        'meta': titulos_meta
+    }
     
     return jsonify(response), 200
 
@@ -455,7 +518,7 @@ def get_estatisticas():
     tags:
       - Remessas
     security:
-      - JWT: []
+      - BasicAuth: []
     responses:
       200:
         description: Estatísticas das remessas
@@ -493,3 +556,140 @@ def get_estatisticas():
         'total_titulos': total_titulos
     }), 200
 
+# Rota para exportar remessas para CSV
+@remessas.route('/exportar', methods=['GET'])
+@auth_required()
+def exportar_remessas():
+    """
+    Exporta remessas para CSV com os mesmos filtros da listagem
+    ---
+    tags:
+      - Remessas
+    security:
+      - BasicAuth: []
+    parameters:
+      - name: tipo
+        in: query
+        type: string
+        required: false
+        description: Tipo de remessa
+      - name: uf
+        in: query
+        type: string
+        required: false
+        description: UF do cartório
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: Status da remessa
+      - name: dataInicio
+        in: query
+        type: string
+        required: false
+        description: Data de início (formato YYYY-MM-DD)
+      - name: dataFim
+        in: query
+        type: string
+        required: false
+        description: Data de fim (formato YYYY-MM-DD)
+    responses:
+      200:
+        description: Arquivo CSV com remessas
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+      400:
+        description: Erro nos parâmetros
+      500:
+        description: Erro ao gerar CSV
+    """
+    from io import StringIO
+    import csv
+    from flask import Response
+    
+    # Obter parâmetros de consulta (mesmos da listagem)
+    tipo = request.args.get('tipo')
+    uf = request.args.get('uf')
+    status = request.args.get('status')
+    data_inicio = request.args.get('dataInicio')
+    data_fim = request.args.get('dataFim')
+    
+    # Construir a consulta
+    query = Remessa.query
+    
+    # Aplicar filtros
+    if tipo:
+        query = query.filter(Remessa.tipo == tipo)
+    
+    if uf:
+        query = query.filter(Remessa.uf == uf)
+    
+    if status:
+        query = query.filter(Remessa.status == status)
+    
+    if data_inicio:
+        try:
+            data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+            query = query.filter(Remessa.data_envio >= data_inicio_dt)
+        except ValueError:
+            return jsonify({'message': 'Formato de data inválido para dataInicio. Use YYYY-MM-DD'}), 400
+    
+    if data_fim:
+        try:
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d')
+            query = query.filter(Remessa.data_envio <= data_fim_dt)
+        except ValueError:
+            return jsonify({'message': 'Formato de data inválido para dataFim. Use YYYY-MM-DD'}), 400
+    
+    # Ordenar por data de envio (mais recentes primeiro)
+    query = query.order_by(Remessa.data_envio.desc())
+    
+    # Executar a consulta (sem paginação para exportação)
+    try:
+        remessas = query.all()
+        
+        # Criar buffer para CSV
+        si = StringIO()
+        cw = csv.writer(si)
+        
+        # Escrever cabeçalho
+        cw.writerow(['ID', 'Nome do Arquivo', 'Data de Envio', 'Status', 'UF', 'Tipo', 
+                     'Quantidade de Títulos', 'Usuário', 'Data de Processamento', 'Descrição'])
+        
+        # Escrever dados
+        for remessa in remessas:
+            usuario = User.query.get(remessa.usuario_id)
+            usuario_nome = usuario.nome_completo if usuario else 'N/A'
+            
+            cw.writerow([
+                remessa.id,
+                remessa.nome_arquivo,
+                remessa.data_envio.strftime('%Y-%m-%d %H:%M:%S') if remessa.data_envio else 'N/A',
+                remessa.status,
+                remessa.uf,
+                remessa.tipo,
+                remessa.quantidade_titulos,
+                usuario_nome,
+                remessa.data_processamento.strftime('%Y-%m-%d %H:%M:%S') if remessa.data_processamento else 'N/A',
+                remessa.descricao or 'N/A'
+            ])
+        
+        # Criar resposta com o CSV
+        output = si.getvalue()
+        
+        # Nome do arquivo
+        filename = f"remessas_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        # Retornar CSV como download
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment;filename={filename}"}
+        )
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao exportar remessas para CSV: {str(e)}")
+        return jsonify({'message': f'Erro ao gerar CSV: {str(e)}'}), 500
