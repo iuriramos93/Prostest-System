@@ -243,7 +243,7 @@ export function ConsultaRemessas() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="Remessa">Remessa</SelectItem>
                     <SelectItem value="Desistência">Desistência</SelectItem>
                   </SelectContent>
@@ -267,7 +267,7 @@ export function ConsultaRemessas() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="Processado">Processado</SelectItem>
                     <SelectItem value="Pendente">Pendente</SelectItem>
                     <SelectItem value="Erro">Erro</SelectItem>
