@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link2, Users, FileText, Settings as SettingsIcon } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import axios from "axios";
@@ -48,7 +46,8 @@ export function Configuracoes() {
   const [activeTab, setActiveTab] = useState("usuarios");
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
-  const { user: currentUser } = useAuth();
+  // currentUser não está sendo usado atualmente, mas será necessário para verificação de permissões no futuro
+  // const { user: currentUser } = useAuth();
   
   // Estado para o formulário de novo usuário
   const [newUser, setNewUser] = useState<Usuario>({
@@ -73,6 +72,8 @@ export function Configuracoes() {
   };
   
   // Carregar usuários do backend
+  // Função mantida para uso futuro
+  /* 
   const loadUsers = async () => {
     try {
       const response = await axios.get(`${API_URL}/auth/users`, getAuthHeader());
@@ -86,14 +87,6 @@ export function Configuracoes() {
       });
     }
   };
-  
-  // Efeito para carregar usuários quando a página é montada
-  /*
-  useEffect(() => {
-    if (currentUser?.admin) {
-      loadUsers();
-    }
-  }, [currentUser]);
   */
   
   // Função para lidar com o envio do formulário
@@ -227,7 +220,8 @@ export function Configuracoes() {
     }
   ]);
 
-  const [logs, setLogs] = useState<Log[]>([
+  // Estado para logs - utilizando apenas o getter, não o setter
+  const [logs] = useState<Log[]>([
     {
       id: "1",
       data: "15/05/2023 14:32:45",
@@ -259,7 +253,8 @@ export function Configuracoes() {
   };
   
   // Verificar se o usuário atual é administrador
-  const isAdmin = currentUser?.admin || true; // Temporariamente sempre true para desenvolvimento
+  // Variável removida pois não está sendo usada
+  // const isAdmin = currentUser?.admin || true;
 
   return (
     <div className="space-y-6">

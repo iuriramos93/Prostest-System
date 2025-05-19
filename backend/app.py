@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -7,15 +7,16 @@ from flask_compress import Compress
 from flask_caching import Cache
 from config import config
 from flask_bcrypt import Bcrypt
-# from flask_jwt_extended import JWTManager # Removido JWTManager
 import os
 import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 db = SQLAlchemy()
 compress = Compress()
 cache = Cache()
 bcrypt = Bcrypt()
-# jwt = JWTManager() # Removido JWTManager
+limiter = Limiter(key_func=get_remote_address)
 
 def create_app(config_name='development'):
     app = Flask(__name__)
@@ -28,29 +29,106 @@ def create_app(config_name='development'):
         'postgresql://postgres:postgres@db:5432/protest_system'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    # Configurações JWT foram removidas
-    # app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY', 'jwt-secret-string')
-    # app.config['JWT_ACCESS_TOKEN_EXPIRES'] = app.config.get('JWT_ACCESS_TOKEN_EXPIRES')
-    # app.config['JWT_REFRESH_TOKEN_EXPIRES'] = app.config.get('JWT_REFRESH_TOKEN_EXPIRES')
-
+    
     # Inicializar extensões
     db.init_app(app)
     bcrypt.init_app(app)
-    # jwt.init_app(app) # Removido JWTManager
+    limiter.init_app(app)
     
-    # Configurar CORS
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    # Configuração CORS centralizada e unificada
+    # Permitir requisições do frontend para o backend independente das variações de localhost/127.0.0.1
+    CORS(app, 
+         origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         expose_headers=["Content-Type", "Authorization"])
+    
+    # Adicionar headers de segurança
+    @app.after_request
+    def add_security_headers(response):
+        # Headers de segurança padrão
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+        
+        # Headers CORS
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        
+        return response
+    
+    # Tratar explicitamente requests OPTIONS para evitar redirecionamentos
+    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def options_handler(path):
+        response = make_response()
+        response.status_code = 200
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+    
+    # Adicionar handler para erros HTTP para garantir headers CORS em todas as respostas
+    @app.errorhandler(404)
+    @app.errorhandler(405)
+    @app.errorhandler(500)
+    def handle_error(error):
+        response = jsonify({'error': str(error), 'message': error.description})
+        response.status_code = error.code if hasattr(error, 'code') else 500
+        origin = request.headers.get('Origin')
+        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+    
+    # Adicionar handler para erros de rate limiting
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        return jsonify({
+            "error": "ratelimit_exceeded",
+            "message": "Limite de requisições excedido. Por favor, tente novamente mais tarde.",
+            "retry_after": e.description
+        }), 429
     
     Migrate(app, db)
-    Swagger(app)
+    
+    # Configurar Swagger com autenticação Basic
+    swagger_config = {
+        "headers": [
+            ('Access-Control-Allow-Origin', '*'),
+            ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'),
+            ('Access-Control-Allow-Headers', 'Content-Type, Authorization'),
+        ],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+                "rule_filter": lambda rule: True,  # all in
+                "model_filter": lambda tag: True,  # all in
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/docs/",
+        "securityDefinitions": {
+            "BasicAuth": {
+                "type": "basic"
+            }
+        },
+    }
+    Swagger(app, config=swagger_config)
     
     # Inicializar ferramentas de performance
     compress.init_app(app)
@@ -63,21 +141,13 @@ def create_app(config_name='development'):
     }
     app.config.from_mapping(cache_config)
     cache.init_app(app)
-    
-    # Inicializar ferramentas de performance personalizadas
-    from app.utils.performance import init_performance_tools
-    init_performance_tools(app)
-    
-    # Inicializar sistema de tarefas assíncronas
-    from app.utils.async_tasks import init_async_tasks
-    init_async_tasks(app)
 
     # Adicionar endpoint de saúde
     @app.route('/health')
     def health_check():
         try:
             # Verificar conexão com banco de dados
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1'))
             db_status = 'ok'
         except Exception as e:
             app.logger.error(f"Erro na verificação do banco de dados: {str(e)}")
@@ -86,7 +156,8 @@ def create_app(config_name='development'):
         return {
             'status': 'ok' if db_status == 'ok' else 'error',
             'database': db_status,
-            'timestamp': time.time()
+            'timestamp': time.time(),
+            'version': '1.0.0'
         }
 
     # Registrar blueprints
@@ -122,4 +193,3 @@ def create_app(config_name='development'):
 
 # Factory pattern implementation
 # A instância é criada pelo wsgi.py
-

@@ -22,6 +22,7 @@ uploads/
 # Arquivos de banco de dados SQLite
 *.sqlite
 *.db
+*.pyc
 
 # Arquivos de IDE
 .idea/

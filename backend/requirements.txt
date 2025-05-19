@@ -19,6 +19,7 @@ python-dateutil==2.8.2
 email-validator==2.1.0.post1
 pdfkit==1.0.0
 flask-bcrypt==1.0.1
+flask-limiter==3.12
 
 # Dependências de performance
 Flask-Compress==1.17
@@ -32,3 +33,47 @@ flake8==6.1.0
 black==23.11.0
 isort==5.12.0
 
+# Core Flask e extensões
+flask>=2.2.0
+flask-sqlalchemy>=3.0.0
+flask-migrate>=4.0.0
+flask-cors>=4.0.0
+flask-caching>=2.0.0
+flask-bcrypt>=1.0.1
+flask-compress>=1.10
+flasgger>=0.9.7
+
+# Banco de dados
+psycopg2-binary>=2.9.5
+SQLAlchemy>=2.0.0
+
+# Utilitários
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+Werkzeug>=2.2.0
+jinja2>=3.1.0
+MarkupSafe>=2.0.0
+click>=8.0.0
+itsdangerous>=2.0.0
+
+# Processamento de dados
+pandas>=1.5.0
+numpy>=1.20.0
+openpyxl>=3.0.0
+xlsxwriter>=3.0.0
+
+# Geração de relatórios
+reportlab>=3.6.0
+WeasyPrint>=57.0
+pdfkit>=1.0.0
+
+# Email
+python-decouple>=3.6
+
+# Para testes
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-flask>=1.2.0
+
+# Produtividade
+ipython>=8.0.0

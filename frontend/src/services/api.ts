@@ -107,9 +107,8 @@ export const desistenciaService = {
   // Enviar uma nova desistência
   enviarDesistencia: async (formData: FormData) => {
     try {
-      // Alinhado com a sugestão do plano: POST /api/remessas/desistencias
-      // Nota: Este endpoint pode precisar ser criado ou ajustado no backend.
-      const response = await api.post('/api/remessas/desistencias', formData, {
+      // Atualizado para usar o endpoint correto
+      const response = await api.post('/api/desistencias/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -124,16 +123,13 @@ export const desistenciaService = {
   // Listar desistências
   listarDesistencias: async (filtros?: any) => {
     try {
-      // Alinhado com a sugestão do plano: GET /api/remessas com filtro tipo=Desistência
-      // Nota: O backend precisa suportar este filtro.
-      const response = await api.get('/api/remessas', {
-        params: { ...filtros, tipo: "Desistência" }
+      // Atualizado para usar o endpoint correto
+      const response = await api.get('/api/desistencias', {
+        params: filtros
       });
       return response.data;
     } catch (error: any) {
       console.error("Erro ao listar desistências:", error);
-      // A lógica de dados simulados foi removida para produção.
-      // O erro será propagado para ser tratado pela interface do usuário.
       throw error;
     }
   }
