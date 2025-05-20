@@ -94,10 +94,10 @@ Você pode verificar a integridade dos dados migrados acessando a API Flask:
 
 ```bash
 # Verificar remessas
-curl http://localhost:5000/api/remessas
+curl http://localhost:5001/api/remessas
 
 # Verificar títulos
-curl http://localhost:5000/api/titulos
+curl http://localhost:5001/api/titulos
 ```
 
 ## Resolução de Problemas

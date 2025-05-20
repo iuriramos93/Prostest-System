@@ -12,8 +12,8 @@
 
 #### 1.2 Dockerfile do Backend
 - Alterado o bind do Gunicorn para permitir acesso externo:
-  - De: `127.0.0.1:5000` (apenas localhost)
-  - Para: `0.0.0.0:5000` (todas as interfaces)
+  - De: `127.0.0.1:5001` (apenas localhost)
+  - Para: `0.0.0.0:5001` (todas as interfaces)
   - Isso garante que o serviço seja acessível de fora do container, essencial para comunicação entre containers.
 
 ### 2. Estrutura de Arquivos Docker
@@ -40,7 +40,7 @@ Para executar o projeto em sua máquina local:
 4. Execute: `docker-compose up --build`
 5. Acesse:
    - Frontend: http://localhost:3002
-   - Backend API: http://localhost:5000
+   - Backend API: http://localhost:5001
    - PGAdmin (gerenciamento do banco): http://localhost:5050
      - Email: admin@protestsystem.com
      - Senha: admin

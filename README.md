@@ -71,7 +71,7 @@ Prostest-System/
 
 4. Acesse a aplicação:
    - Frontend: http://localhost:5173
-   - Backend API: http://localhost:5000
+   - Backend API: http://localhost:5001
    - pgAdmin: http://localhost:5050 (credenciais no .env)
 
 ### Desenvolvimento Local

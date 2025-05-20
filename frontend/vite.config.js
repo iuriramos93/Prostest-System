@@ -20,7 +20,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://api:5000',
+        target: 'http://api:5001',
         changeOrigin: true,
         secure: false,
       }
