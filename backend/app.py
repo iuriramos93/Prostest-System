@@ -39,8 +39,8 @@ def create_app(config_name='development'):
     # Permitir requisições do frontend para o backend independente das variações de localhost/127.0.0.1
     allowed_origins = [
         "http://localhost:5173", "http://127.0.0.1:5173",  # Frontend Vite dev server
-        "http://localhost:5000", "http://127.0.0.1:5000",  # Backend porta padrão
-        "http://localhost:5001", "http://127.0.0.1:5001",  # Backend porta alternativa
+        "http://localhost:5001", "http://127.0.0.1:5001",  # Backend porta principal
+        "http://localhost:5000", "http://127.0.0.1:5000",  # Backend porta alternativa
         "http://localhost:3000", "http://127.0.0.1:3000",  # Outras portas comuns
         "http://localhost:8080", "http://127.0.0.1:8080"   # Outras portas comuns
     ]

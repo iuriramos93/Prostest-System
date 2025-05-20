@@ -8,7 +8,7 @@ const getApiUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // Prioridade 2: Tentar porta 5001 (porta atual do backend no docker-compose)
+  // Prioridade 2: Tentar porta 5001 (porta do backend no docker-compose)
   return 'http://localhost:5001';
 };
 
@@ -23,8 +23,8 @@ export const api = axios.create({
   },
   // Aumentar timeout para evitar falhas em conexões lentas
   timeout: 10000,
-  // Habilitar credenciais para CORS
-  withCredentials: true
+  // Desabilitar credenciais para evitar problemas de CORS com preflight
+  withCredentials: false
 });
 
 // Interceptor para adicionar o header de Basic Auth em todas as requisições
@@ -122,6 +122,14 @@ export const desistenciaService = {
   // Enviar uma nova desistência
   enviarDesistencia: async (formData: FormData) => {
     try {
+      // Garantir que o campo do arquivo seja nomeado como 'arquivo'
+      // Se o formData contiver 'file', renomear para 'arquivo'
+      if (formData.has('file') && !formData.has('arquivo')) {
+        const file = formData.get('file');
+        formData.delete('file');
+        formData.append('arquivo', file as Blob);
+      }
+      
       // Atualizado para usar o endpoint correto
       const response = await api.post('/api/desistencias/upload', formData, {
         headers: {
