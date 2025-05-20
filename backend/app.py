@@ -35,76 +35,109 @@ def create_app(config_name='development'):
     bcrypt.init_app(app)
     limiter.init_app(app)
     
-    # Configuração CORS centralizada e unificada
+    # Configuração CORS centralizada e unificada - EXPANDIDA para incluir todas as portas possíveis
     # Permitir requisições do frontend para o backend independente das variações de localhost/127.0.0.1
+    allowed_origins = [
+        "http://localhost:5173", "http://127.0.0.1:5173",  # Frontend Vite dev server
+        "http://localhost:5000", "http://127.0.0.1:5000",  # Backend porta padrão
+        "http://localhost:5001", "http://127.0.0.1:5001",  # Backend porta alternativa
+        "http://localhost:3000", "http://127.0.0.1:3000",  # Outras portas comuns
+        "http://localhost:8080", "http://127.0.0.1:8080"   # Outras portas comuns
+    ]
+    
     CORS(app, 
-         origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+         origins=allowed_origins,
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          expose_headers=["Content-Type", "Authorization"])
     
-    # Adicionar headers de segurança
+    # Adicionar headers de segurança e CORS
     @app.after_request
-    def add_security_headers(response):
+    def add_headers(response):
         # Headers de segurança padrão
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
         
-        # Headers CORS
+        # Headers CORS - EXPANDIDO para todas as origens permitidas
         origin = request.headers.get('Origin')
-        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'  # Cache preflight por 1 hora
         
         return response
     
-    # Tratar explicitamente requests OPTIONS para evitar redirecionamentos
+    # Tratar explicitamente requests OPTIONS para evitar redirecionamentos - MELHORADO
     @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
     @app.route('/<path:path>', methods=['OPTIONS'])
     def options_handler(path):
         response = make_response()
         response.status_code = 200
+        
+        # Headers CORS para OPTIONS - EXPANDIDO
         origin = request.headers.get('Origin')
-        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'  # Cache preflight por 1 hora
+        
+        # Garantir que não haja redirecionamento
+        return response, 200
     
     # Adicionar handler para erros HTTP para garantir headers CORS em todas as respostas
     @app.errorhandler(404)
     @app.errorhandler(405)
     @app.errorhandler(500)
+    @app.errorhandler(301)
+    @app.errorhandler(302)
+    @app.errorhandler(307)
+    @app.errorhandler(308)
     def handle_error(error):
-        response = jsonify({'error': str(error), 'message': error.description})
+        response = jsonify({
+            'error': str(error), 
+            'message': error.description if hasattr(error, 'description') else 'Erro no servidor'
+        })
         response.status_code = error.code if hasattr(error, 'code') else 500
+        
+        # Headers CORS para erros - EXPANDIDO
         origin = request.headers.get('Origin')
-        if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
         return response
     
     # Adicionar handler para erros de rate limiting
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        return jsonify({
+        response = jsonify({
             "error": "ratelimit_exceeded",
             "message": "Limite de requisições excedido. Por favor, tente novamente mais tarde.",
             "retry_after": e.description
-        }), 429
+        })
+        response.status_code = 429
+        
+        # Headers CORS para erro de rate limiting
+        origin = request.headers.get('Origin')
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
+        return response
     
     Migrate(app, db)
     
-    # Configurar Swagger com autenticação Basic
+    # Configurar Swagger com autenticação Basic e CORS
     swagger_config = {
         "headers": [
             ('Access-Control-Allow-Origin', '*'),

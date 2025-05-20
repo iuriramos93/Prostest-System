@@ -1,15 +1,30 @@
 // Serviço de API para o Sistema de Protesto
 import axios from 'axios';
 
-// API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// API base URL com fallback para múltiplas portas
+const getApiUrl = () => {
+  // Prioridade 1: Variável de ambiente definida
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Prioridade 2: Tentar porta 5001 (porta atual do backend no docker-compose)
+  return 'http://localhost:5001';
+};
+
+const API_URL = getApiUrl();
+console.log('API URL configurada:', API_URL);
 
 // Criar instância do axios com configurações base
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  // Aumentar timeout para evitar falhas em conexões lentas
+  timeout: 10000,
+  // Habilitar credenciais para CORS
+  withCredentials: true
 });
 
 // Interceptor para adicionar o header de Basic Auth em todas as requisições
@@ -135,8 +150,64 @@ export const desistenciaService = {
   }
 };
 
+// Serviço para títulos
+export const titulosService = {
+  // Listar títulos
+  listarTitulos: async (filtros?: any) => {
+    try {
+      const response = await api.get('/api/titulos', {
+        params: filtros
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao listar títulos:", error);
+      throw error;
+    }
+  },
+
+  // Obter detalhes de um título
+  obterTitulo: async (id: string) => {
+    try {
+      const response = await api.get(`/api/titulos/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erro ao obter título ${id}:`, error);
+      throw error;
+    }
+  }
+};
+
+// Serviço para erros
+export const errosService = {
+  // Listar erros
+  listarErros: async (filtros?: any) => {
+    try {
+      const response = await api.get('/api/erros', {
+        params: filtros
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao listar erros:", error);
+      throw error;
+    }
+  },
+
+  // Obter detalhes de um erro
+  obterErro: async (id: string) => {
+    try {
+      const response = await api.get(`/api/erros/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erro ao obter erro ${id}:`, error);
+      throw error;
+    }
+  }
+};
+
 export default {
   api,
   remessaService,
-  desistenciaService
+  desistenciaService,
+  titulosService,
+  errosService
 };
