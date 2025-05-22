@@ -32,7 +32,7 @@ def auth_required(admin_required=False):
                 # Buscar usuário
                 user = User.query.filter_by(username=username).first()
                 
-                if not user or not user.check_password(password):
+                if not user or not user.verify_password(password):
                     return jsonify({'message': 'Credenciais inválidas'}), 401
                 
                 if not user.ativo:
@@ -51,3 +51,14 @@ def auth_required(admin_required=False):
         return decorated_function
     
     return decorator
+
+def clear_user_cache(user_id):
+    """
+    Limpa o cache relacionado a um usuário específico
+    
+    Parâmetros:
+    - user_id: ID do usuário
+    """
+    # Implementação de limpeza de cache (placeholder)
+    # Em uma implementação real, isso limparia o cache do Redis ou similar
+    pass

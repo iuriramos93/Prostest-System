@@ -15,6 +15,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 # Importar configurações
 from config.environments import config
+from config.cors import configure_cors
+from app.utils.middleware import register_middlewares
 
 # Inicializar extensões
 db = SQLAlchemy()
@@ -48,8 +50,8 @@ def create_app(config_name=None):
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', app.config.get('SQLALCHEMY_DATABASE_URI'))
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', app.config.get('SECRET_KEY'))
     
-    # Configuração CORS robusta
-    allowed_origins = [
+    # Lista de origens permitidas para CORS
+    app.config['CORS_ALLOWED_ORIGINS'] = [
         "http://localhost:5173", "http://127.0.0.1:5173",  # Frontend Vite dev server
         "http://localhost:5000", "http://127.0.0.1:5000",  # Backend porta padrão
         "http://localhost:5001", "http://127.0.0.1:5001",  # Backend porta alternativa
@@ -57,33 +59,17 @@ def create_app(config_name=None):
         "http://localhost:8080", "http://127.0.0.1:8080",  # Porta alternativa Vue/outros
     ]
     
-    CORS(app, 
-         origins=allowed_origins,
-         supports_credentials=True,
-         allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         expose_headers=["Content-Type", "Authorization"])
+    # Registrar middlewares
+    register_middlewares(app)
+    
+    # Configuração CORS centralizada
+    configure_cors(app)
     
     # Inicializar extensões com o app
     db.init_app(app)
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     limiter.init_app(app)
-    
-    # Handler OPTIONS robusto para evitar redirecionamentos em preflight
-    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
-    @app.route('/<path:path>', methods=['OPTIONS'])
-    def options_handler(path):
-        response = make_response()
-        response.status_code = 200
-        origin = request.headers.get('Origin')
-        if origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Max-Age'] = '3600'
-        return response
     
     # Registrar blueprints
     from app.auth import auth as auth_blueprint
@@ -114,13 +100,6 @@ def create_app(config_name=None):
             "description": e.description,
         }).data
         response.content_type = "application/json"
-        
-        # Adicionar headers CORS para garantir que erros também respeitem CORS
-        origin = request.headers.get('Origin')
-        if origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        
         return response
     
     # Handler para erros não-HTTP
@@ -136,30 +115,17 @@ def create_app(config_name=None):
             "description": "Ocorreu um erro interno no servidor."
         })
         response.status_code = 500
-        
-        # Adicionar headers CORS
-        origin = request.headers.get('Origin')
-        if origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        
         return response
     
     # Headers de segurança
     @app.after_request
     def add_security_headers(response):
+        # Headers de segurança
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         response.headers['Content-Security-Policy'] = "default-src 'self'"
-        
-        # Garantir que os headers CORS estejam presentes em todas as respostas
-        origin = request.headers.get('Origin')
-        if origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        
         return response
     
     # Criar diretórios necessários
