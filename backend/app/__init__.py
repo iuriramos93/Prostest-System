@@ -4,13 +4,22 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_bcrypt import Bcrypt
 import os
+import sys
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
+
+# Adicionar diretório pai ao path para permitir importações relativas
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Importar configurações
+from config.environments import config
 
 # Inicializar extensões
 db = SQLAlchemy()
 migrate = Migrate()
+bcrypt = Bcrypt()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
@@ -21,13 +30,13 @@ def create_app(config_name=None):
     
     # Configuração
     if config_name == 'production':
-        app.config.from_object('config.ProductionConfig')
+        app.config.from_object(config['production'])
     else:
-        app.config.from_object('config.DevelopmentConfig')
+        app.config.from_object(config['development'])
     
     # Sobrescrever configurações com variáveis de ambiente
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', app.config['SQLALCHEMY_DATABASE_URI'])
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', app.config['SECRET_KEY'])
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', app.config.get('SQLALCHEMY_DATABASE_URI'))
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', app.config.get('SECRET_KEY'))
     
     # Configuração CORS robusta
     allowed_origins = [
@@ -48,6 +57,7 @@ def create_app(config_name=None):
     # Inicializar extensões com o app
     db.init_app(app)
     migrate.init_app(app, db)
+    bcrypt.init_app(app)
     limiter.init_app(app)
     
     # Handler OPTIONS robusto para evitar redirecionamentos em preflight

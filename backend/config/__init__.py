@@ -1,0 +1,1 @@
+# Este arquivo permite que o diretório config seja reconhecido como um pacote Python 
