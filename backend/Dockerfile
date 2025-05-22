@@ -11,11 +11,13 @@ ENV GUNICORN_TIMEOUT 120
 
 # Criar um usuário e grupo não-root
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin -c "Docker image user" appuser
+RUN chown -R appuser:appuser /app
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar arquivos de requisitos
@@ -33,17 +35,16 @@ RUN mkdir -p logs && chown -R appuser:appuser logs
 # Mudar para o usuário não-root
 USER appuser
 
-# Expor a porta
+# Expor a porta correta da API
 EXPOSE 5001
 
-# Script de inicialização (já copiado e com permissão de execução)
-# COPY scripts/init_db.py /app/scripts/init_db.py
-# RUN chmod +x /app/scripts/init_db.py
-
-# HEALTHCHECK para verificar se a aplicação está respondendo
-# Supõe que você tenha um endpoint /health no seu app Flask que retorna 200 OK
+# HEALTHCHECK para verificar se a aplicação está respondendo na porta 5001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:5001/health || exit 1
 
-# Comando para iniciar a aplicação
-CMD ["sh", "-c", "python /app/scripts/init_db.py && gunicorn --bind 0.0.0.0:5001 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} wsgi:app"]
+# Script de espera para o banco de dados
+COPY --chown=appuser:appuser scripts/wait-for-db.sh /app/wait-for-db.sh
+RUN chmod +x /app/wait-for-db.sh
+
+# Comando para esperar o banco de dados, criar o banco, rodar as migrations e depois iniciar o servidor
+CMD ["sh", "-c", "/app/wait-for-db.sh db:5432 -- python /app/scripts/init_db.py && alembic upgrade head && gunicorn --bind 0.0.0.0:5001 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} wsgi:app"]

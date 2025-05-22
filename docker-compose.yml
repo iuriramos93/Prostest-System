@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Arquivo docker-compose.yml unificado para o Prostest-System
 # Este arquivo gerencia os serviços para ambientes de desenvolvimento e produção,
 # utilizando variáveis de ambiente definidas em arquivos .env apropriados.
@@ -7,24 +5,28 @@ version: '3.8'
 services:
   # Serviço do Banco de Dados PostgreSQL
   db:
-    image: postgres:13-alpine
+    image: postgres:latest
     container_name: protestsystem-db
-    restart: always
-    env_file:
-      - .env # Carrega variáveis de .env (ou .env.prod em produção)
+    # restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=protest_system
+    # env_file:
+    #   - .env # Carrega variáveis de .env (ou .env.prod em produção)
     ports:
-      - "${POSTGRES_PORT:-5432}:5432" # Permite configurar a porta do host via .env
+      - 5432:5432 # Permite configurar a porta do host via .env
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Descomentado e corrigido o caminho para os scripts SQL de inicialização
       - ./sql_scripts:/docker-entrypoint-initdb.d
     networks:
       - protestsystem-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-protest_system}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-protest_system}"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
 
   # Serviço da API Backend (Flask)
   api:
@@ -32,17 +34,31 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: protestsystem-api
-    restart: always
-    env_file:
-      - .env # Carrega variáveis de .env (ou .env.prod em produção)
+    # restart: always
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=local
+      - FLASK_DEBUG=1
+      - SECRET_KEY=sua_chave_secreta_aqui
+      # - JWT_SECRET_KEY=outra_chave_secreta_para_jwt
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/protest_system
+      - UPLOAD_FOLDER=uploads
+      # - MAIL_SERVER=smtp.gmail.com
+      # - MAIL_PORT=587
+      # - MAIL_USE_TLS=true
+      # - MAIL_USERNAME=seu-email@gmail.com
+      # - MAIL_PASSWORD=sua-senha-aqui
+      # - MAIL_DEFAULT_SENDER=noreply@protestosystem.com
+    # env_file:
+    #   - .env # Carrega variáveis de .env (ou .env.prod em produção)
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+        
     ports:
-      - "${API_PORT:-5001}:5001"
-    volumes:
+      - 5001:5001
+    # volumes:
       # Em desenvolvimento, montamos o código para hot-reloading.
-      - ./backend:/app
+      # - ./backend:/app
     networks:
       - protestsystem-network
     # HEALTHCHECK já está definido no backend/Dockerfile
@@ -52,16 +68,18 @@ services:
     build:
       context: ./frontend # Contexto agora é a pasta frontend
       dockerfile: Dockerfile
-      target: development # Especifica o target stage para desenvolvimento
+      # target: development # Especifica o target stage para desenvolvimento
     container_name: protestsystem-frontend
-    restart: always
-    env_file:
-      - .env # Carrega variáveis de .env
+    # restart: always
+    environment:
+      - VITE_API_URL=http://0.0.0.0:5001
+    # env_file:
+    #   - .env # Carrega variáveis de .env
     ports:
-      - "${FRONTEND_PORT:-5173}:5173" # Porta do Vite dev server
-    volumes:
-      - ./frontend:/app # Montar código fonte para hot-reloading
-      - /app/node_modules # Isolar node_modules
+      - 80:80 # Porta do Vite dev server
+    # volumes:
+      # - ./frontend:/app # Montar código fonte para hot-reloading
+      # - /app/node_modules # Isolar node_modules
     depends_on:
       - api
     networks:
@@ -85,7 +103,7 @@ services:
 
 volumes:
   pgdata: # Volume nomeado para persistência dos dados do PostgreSQL
-  pgadmin-data: # Volume nomeado para persistência dos dados do PGAdmin
+  # pgadmin-data: # Volume nomeado para persistência dos dados do PGAdmin
 
 networks:
   protestsystem-network:

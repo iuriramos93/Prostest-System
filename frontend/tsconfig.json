@@ -28,5 +28,9 @@
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }],
-  "composite": true
+  "composite": true,
+  "buildOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+  }
 }
