@@ -20,10 +20,20 @@ from config.environments import config
 db = SQLAlchemy()
 migrate = Migrate()
 bcrypt = Bcrypt()
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
+
+# Configuração do Flask-Limiter com Redis para produção ou memória para desenvolvimento
+def get_limiter(app=None):
+    storage_uri = os.environ.get('REDIS_URL', 'memory://')
+    if app and app.config.get('ENV') == 'production' and 'memory:' in storage_uri:
+        app.logger.warning("Usando armazenamento em memória para rate limiting em produção. Considere configurar REDIS_URL.")
+    
+    return Limiter(
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri=storage_uri
+    )
+
+limiter = get_limiter()
 
 def create_app(config_name=None):
     app = Flask(__name__)
@@ -156,9 +166,10 @@ def create_app(config_name=None):
     with app.app_context():
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
-        # Verificar conexão com o banco
+        # Verificar conexão com o banco (usando método moderno do SQLAlchemy)
         try:
-            db.engine.execute('SELECT 1')
+            with db.engine.connect() as connection:
+                connection.execute(db.text('SELECT 1'))
             app.logger.info("Conexão com o banco de dados estabelecida com sucesso.")
         except Exception as e:
             app.logger.error(f"Erro ao conectar ao banco de dados: {str(e)}")
